@@ -1,0 +1,197 @@
+STATUS_VALUES = [
+    "EMPTY",
+    "TOPIC_GENERATED",
+    "SCRIPT_GENERATED",
+    "WAITING_USER_SELECTION",
+    "SELECTED",
+    "ASSET_GENERATING",
+    "ASSET_REVIEW",
+    "VIDEO_RENDERING",
+    "VIDEO_RENDERED",
+    "WAITING_USER_APPROVAL",
+    "APPROVED",
+    "UPLOADING_PRIVATE",
+    "UPLOADED_PRIVATE",
+    "SCHEDULED",
+    "PUBLISHED",
+    "FAILED",
+    "CANCELLED",
+]
+
+ON_OFF_VALUES = ["ON", "OFF"]
+TRUE_FALSE_VALUES = ["TRUE", "FALSE"]
+
+VISUAL_STYLE_VALUES = [
+    "따뜻한 수채화 애니메이션풍",
+    "실사풍",
+    "인포그래픽",
+    "스틱맨",
+    "밝고 부드러운 가족용 3D 애니메이션풍",
+    "고품질 3D 캐릭터 애니메이션풍",
+    "사용자 정의",
+]
+
+SHEET_NAMES = [
+    "사용안내",
+    "채널목록",
+    "검수대기",
+    "업로드현황",
+    "_SYSTEM_JOBS",
+    "_SYSTEM_LOGS",
+    "_SYSTEM_ASSETS",
+    "_SYSTEM_SESSIONS",
+    "_SYSTEM_SETTINGS",
+]
+
+CHANNEL_LIST_COLUMNS = [
+    "channel_id",
+    "channel_name",
+    "sheet_name",
+    "automation_enabled",
+    "google_account_email",
+    "youtube_channel_id",
+    "oauth_connected",
+    "monday_enabled",
+    "tuesday_enabled",
+    "wednesday_enabled",
+    "thursday_enabled",
+    "friday_enabled",
+    "saturday_enabled",
+    "sunday_enabled",
+    "upload_time",
+    "default_video_length_minutes",
+    "default_visual_style",
+    "alert_phone_number",
+    "last_topic_generated_week",
+    "last_checked_at",
+    "status",
+    "error_message",
+]
+
+CHANNEL_SETTINGS_KEYS = [
+    "channel_name",
+    "channel_description",
+    "automation_enabled",
+    "intro_format_prompt",
+    "outro_format_prompt",
+    "upload_days",
+    "upload_time",
+    "default_video_length_minutes",
+    "target_age_group",
+    "narration_style",
+    "narration_speed",
+    "subtitle_font",
+    "subtitle_color",
+    "subtitle_outline_color",
+    "subtitle_position",
+    "visual_style_default",
+    "thumbnail_style_prompt",
+    "caution_prompt",
+    "alert_phone_number",
+]
+
+CHANNEL_TOPIC_COLUMNS = [
+    "topic_id",
+    "week_key",
+    "upload_day",
+    "upload_datetime",
+    "selected",
+    "topic_title",
+    "topic_type",
+    "planning_note",
+    "script_summary",
+    "full_script",
+    "video_length_minutes",
+    "visual_style",
+    "user_custom_style_prompt",
+    "status",
+    "review_link",
+    "edit_session_link",
+    "thumbnail_url",
+    "rendered_video_url",
+    "youtube_video_id",
+    "youtube_private_url",
+    "youtube_public_url",
+    "error_message",
+    "created_at",
+    "updated_at",
+]
+
+REVIEW_COLUMNS = [
+    "task_id",
+    "channel_id",
+    "channel_name",
+    "topic_id",
+    "task_type",
+    "title",
+    "status",
+    "deadline",
+    "review_link",
+    "user_action",
+    "updated_at",
+]
+
+UPLOAD_COLUMNS = [
+    "upload_id",
+    "channel_id",
+    "channel_name",
+    "topic_id",
+    "title",
+    "upload_datetime",
+    "publish_datetime",
+    "status",
+    "youtube_video_id",
+    "youtube_private_url",
+    "youtube_public_url",
+    "error_message",
+    "updated_at",
+]
+
+JOB_COLUMNS = [
+    "job_id",
+    "job_type",
+    "channel_id",
+    "topic_id",
+    "status",
+    "locked_by",
+    "locked_until",
+    "retry_count",
+    "max_retries",
+    "input_json",
+    "output_json",
+    "error_message",
+    "created_at",
+    "updated_at",
+]
+
+LOG_COLUMNS = [
+    "log_id",
+    "level",
+    "job_id",
+    "channel_id",
+    "topic_id",
+    "message",
+    "created_at",
+]
+
+ASSET_COLUMNS = [
+    "asset_id",
+    "topic_id",
+    "scene_id",
+    "asset_type",
+    "asset_url",
+    "prompt",
+    "status",
+    "version",
+    "created_at",
+]
+
+SESSION_COLUMNS = [
+    "session_id",
+    "topic_id",
+    "edit_session_url",
+    "current_render_version",
+    "replacement_history_json",
+    "created_at",
+    "updated_at",
+]
