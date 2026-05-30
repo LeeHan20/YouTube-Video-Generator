@@ -100,6 +100,8 @@ class MediaSourceService:
                     response.raise_for_status()
                     pages = response.json().get("query", {}).get("pages", {})
                     for page in pages.values():
+                        if len(candidates) >= limit:
+                            break
                         info = (page.get("imageinfo") or [{}])[0]
                         mime = info.get("mime", "")
                         if mode == "crawl_video" and not mime.startswith("video/"):
@@ -134,13 +136,21 @@ class MediaSourceService:
                                 height=height,
                             )
                         )
-                    if len(candidates) >= limit * 2:
+                    if len(candidates) >= limit:
                         break
         except Exception:
             candidates = []
         candidates.sort(key=lambda item: item.score, reverse=True)
         if len(candidates) < limit and mode == "crawl_image":
-            candidates.extend(self._crawl_openverse(topic_id, scene, user_instruction, seen={item.asset_url for item in candidates}))
+            candidates.extend(
+                self._crawl_openverse(
+                    topic_id,
+                    scene,
+                    user_instruction,
+                    seen={item.asset_url for item in candidates},
+                    limit=limit - len(candidates),
+                )
+            )
             candidates.sort(key=lambda item: item.score, reverse=True)
         return candidates[:limit]
 
@@ -194,8 +204,17 @@ class MediaSourceService:
         path.write_bytes(response.content)
         return path
 
-    def _crawl_openverse(self, topic_id: str, scene: Scene, user_instruction: str, seen: set[str]) -> list[MediaCandidate]:
+    def _crawl_openverse(
+        self,
+        topic_id: str,
+        scene: Scene,
+        user_instruction: str,
+        seen: set[str],
+        limit: int = 4,
+    ) -> list[MediaCandidate]:
         candidates: list[MediaCandidate] = []
+        if limit <= 0:
+            return candidates
         headers = {"User-Agent": "Auto2YouTubeAutomation/0.1 (local review tool; contact: admin@example.com)"}
         try:
             with httpx.Client(timeout=self.settings.media_crawl_timeout_seconds, follow_redirects=True, headers=headers) as client:
@@ -206,6 +225,8 @@ class MediaSourceService:
                     )
                     response.raise_for_status()
                     for item in response.json().get("results", []):
+                        if len(candidates) >= limit:
+                            break
                         source_url = item.get("url") or item.get("thumbnail")
                         if not source_url or source_url in seen:
                             continue
@@ -247,7 +268,7 @@ class MediaSourceService:
                                 height=height,
                             )
                         )
-                    if len(candidates) >= 4:
+                    if len(candidates) >= limit:
                         break
         except Exception:
             return candidates

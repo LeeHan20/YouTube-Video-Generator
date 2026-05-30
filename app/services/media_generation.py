@@ -4,6 +4,7 @@ import json
 import shlex
 import subprocess
 import textwrap
+from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
@@ -26,8 +27,16 @@ class PlaceholderMediaGenerator:
         self.narration = NarrationService()
         self.image_generation = ImageGenerationService()
 
-    def generate_scene_assets(self, topic_id: str, scenes: list[Scene], source_mode: str = "auto") -> list[Scene]:
-        for scene in scenes:
+    def generate_scene_assets(
+        self,
+        topic_id: str,
+        scenes: list[Scene],
+        source_mode: str = "auto",
+        progress: Callable[[str], None] | None = None,
+    ) -> list[Scene]:
+        for index, scene in enumerate(scenes, start=1):
+            if progress:
+                progress(f"[assets] {index}/{len(scenes)} {scene.scene_id} 이미지 수집 시작")
             original_prompt = scene.visual_prompt
             asset = self.sources.create_asset(topic_id, scene, source_mode=source_mode)
             scene.asset_url = asset.asset_url
@@ -35,6 +44,8 @@ class PlaceholderMediaGenerator:
             scene.asset_credit = asset.credit
             scene.asset_license = asset.license
             scene.visual_prompt = original_prompt if asset.source.startswith("crawl_") else asset.prompt
+            if progress:
+                progress(f"[assets] {index}/{len(scenes)} {scene.scene_id} 완료: {scene.asset_source}")
         return scenes
 
     def write_manifest(self, manifest: RenderManifest) -> Path:
@@ -48,7 +59,12 @@ class PlaceholderMediaGenerator:
         path.write_text(self._srt(scenes), encoding="utf-8")
         return path, self._url_for(path)
 
-    def render_video(self, manifest: RenderManifest, dirty_scene_ids: set[str] | None = None) -> tuple[Path, str]:
+    def render_video(
+        self,
+        manifest: RenderManifest,
+        dirty_scene_ids: set[str] | None = None,
+        progress: Callable[[str], None] | None = None,
+    ) -> tuple[Path, str]:
         topic_dir = self.root / "topics" / manifest.topic_id
         topic_dir.mkdir(parents=True, exist_ok=True)
         clean_video_path = topic_dir / "rendered_no_subtitles.mp4"
@@ -62,17 +78,29 @@ class PlaceholderMediaGenerator:
                 segment_path = topic_dir / "segments" / f"{index:03d}_{scene.scene_id}.mp4"
                 should_render = dirty_scene_ids is None or scene.scene_id in dirty_scene_ids or not segment_path.exists()
                 if should_render or not audio_path.exists():
+                    if progress:
+                        progress(f"[render] {index}/{len(manifest.scenes)} {scene.scene_id} 나레이션 생성")
                     self.narration.synthesize(scene.narration, audio_path)
                 existing_segment_duration = self._probe_duration(segment_path) if not should_render else None
                 duration = max(scene.duration_seconds, existing_segment_duration or self._probe_duration(audio_path) or scene.duration_seconds)
                 scene.duration_seconds = duration
                 if should_render:
+                    if progress:
+                        progress(f"[render] {index}/{len(manifest.scenes)} {scene.scene_id} 장면 렌더링")
                     self._render_scene_segment(scene, audio_path, segment_path, duration)
+                elif progress:
+                    progress(f"[render] {index}/{len(manifest.scenes)} {scene.scene_id} 기존 segment 재사용")
                 segment_paths.append(segment_path)
                 cursor += duration
+            if progress:
+                progress("[render] 자막 파일 생성")
             subtitle_path, subtitle_url = self.write_subtitles(manifest.topic_id, manifest.scenes)
             manifest.subtitle_url = subtitle_url
+            if progress:
+                progress("[render] 장면 segment 합치기")
             self._concat_segments(segment_paths, clean_video_path)
+            if progress:
+                progress("[render] 자막 트랙 mux")
             self._mux_subtitles(clean_video_path, subtitle_path, video_path)
         except (FileNotFoundError, subprocess.CalledProcessError):
             fallback = topic_dir / "rendered-placeholder.json"

@@ -39,9 +39,18 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-sonnet-4-5"
 
+    supertone_api_key: str = ""
+    supertone_voice_id: str = ""
+    supertone_model: str = "sona_speech_2"
+    supertone_language: str = "ko"
+    supertone_style: str = "neutral"
+    supertone_output_format: str = "wav"
+    supertone_timeout_seconds: int = 30
+    supertone_speed: float = 0.9
+
     image_provider: str = "placeholder"
     tts_provider: str = "placeholder"
-    narration_provider: str = "gemini"
+    narration_provider: str = "supertone"
     narration_allow_system_fallback: bool = True
     narration_speaking_style: str = "very slow, warm, kind Korean announcer tone"
     video_clip_provider: str = "placeholder"
