@@ -20,6 +20,7 @@ class SheetMeta:
     title: str
     sheet_id: int
     hidden: bool
+    column_count: int
 
 
 class SheetsClient:
@@ -46,6 +47,7 @@ class SheetsClient:
                 title=sheet["properties"]["title"],
                 sheet_id=sheet["properties"]["sheetId"],
                 hidden=sheet["properties"].get("hidden", False),
+                column_count=sheet["properties"].get("gridProperties", {}).get("columnCount", 26),
             )
             for sheet in response.get("sheets", [])
         }
@@ -104,6 +106,22 @@ class SheetsClient:
             insertDataOption="INSERT_ROWS",
             body={"values": list(values)},
         ).execute()
+
+    def insert_rows_before(self, sheet_id: int, start_row_index: int, count: int) -> None:
+        """Insert `count` empty rows before `start_row_index` (0-based)."""
+        self.batch_update([
+            {
+                "insertDimension": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "dimension": "ROWS",
+                        "startIndex": start_row_index,
+                        "endIndex": start_row_index + count,
+                    },
+                    "inheritFromBefore": False,
+                }
+            }
+        ])
 
     def read_records(self, sheet_name: str, header_row: int = 1) -> list[dict[str, str]]:
         values = self.get_values(f"'{sheet_name}'!A{header_row}:ZZ")

@@ -29,6 +29,31 @@ class Settings(BaseSettings):
     server_instance_id: str = "local-dev"
     sms_provider: str = "mock"
 
+    ai_provider: str = "gemini"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
+    gemini_image_model: str = "gemini-2.5-flash-image"
+    gemini_tts_model: str = "gemini-2.5-flash-preview-tts"
+    gemini_tts_voice_name: str = "Kore"
+    gemini_tts_timeout_seconds: int = 20
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-sonnet-4-5"
+
+    image_provider: str = "placeholder"
+    tts_provider: str = "placeholder"
+    narration_provider: str = "gemini"
+    narration_allow_system_fallback: bool = True
+    narration_speaking_style: str = "very slow, warm, kind Korean announcer tone"
+    video_clip_provider: str = "placeholder"
+    media_source_mode: str = "crawl_image"
+    media_crawl_provider: str = "wikimedia"
+    media_crawl_max_results: int = 6
+    media_crawl_allowed_licenses: str = "cc0,public domain,cc-by,cc-by-sa"
+    media_crawl_timeout_seconds: int = 20
+
+    google_oauth_client_secrets: str = "./client_secret.json"
+    youtube_oauth_redirect_uri: str = "http://localhost:8000/admin/youtube/oauth/callback"
+
 
 @lru_cache
 def get_settings() -> Settings:

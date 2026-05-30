@@ -8,13 +8,21 @@ STATUS_VALUES = [
     "ASSET_REVIEW",
     "VIDEO_RENDERING",
     "VIDEO_RENDERED",
+    "IMAGE_CRAWLING",
+    "IMAGE_CANDIDATES_READY",
+    "IMAGE_SELECTED",
+    "IMAGE_CRAWLING_FAILED",
     "WAITING_USER_APPROVAL",
+    "WAITING_FINAL_APPROVAL",
+    "FINAL_APPROVING",
+    "FINAL_APPROVED",
     "APPROVED",
     "UPLOADING_PRIVATE",
     "UPLOADED_PRIVATE",
     "SCHEDULED",
     "PUBLISHED",
     "FAILED",
+    "VIDEO_RENDER_FAILED",
     "CANCELLED",
 ]
 
@@ -68,6 +76,31 @@ CHANNEL_LIST_COLUMNS = [
     "error_message",
 ]
 
+CHANNEL_LIST_LABELS = {
+    "channel_id": "채널 ID",
+    "channel_name": "채널명",
+    "sheet_name": "시트명",
+    "automation_enabled": "자동화",
+    "google_account_email": "구글 계정 이메일",
+    "youtube_channel_id": "유튜브 채널 ID",
+    "oauth_connected": "OAuth 연결상태",
+    "monday_enabled": "월요일 업로드",
+    "tuesday_enabled": "화요일 업로드",
+    "wednesday_enabled": "수요일 업로드",
+    "thursday_enabled": "목요일 업로드",
+    "friday_enabled": "금요일 업로드",
+    "saturday_enabled": "토요일 업로드",
+    "sunday_enabled": "일요일 업로드",
+    "upload_time": "업로드 시간",
+    "default_video_length_minutes": "기본 영상 길이(분)",
+    "default_visual_style": "기본 그림체",
+    "alert_phone_number": "알림 전화번호",
+    "last_topic_generated_week": "마지막 소주제 생성 주차",
+    "last_checked_at": "마지막 확인 시각",
+    "status": "상태",
+    "error_message": "오류 메시지",
+}
+
 CHANNEL_SETTINGS_KEYS = [
     "channel_name",
     "channel_description",
@@ -89,6 +122,28 @@ CHANNEL_SETTINGS_KEYS = [
     "caution_prompt",
     "alert_phone_number",
 ]
+
+CHANNEL_SETTINGS_LABELS = {
+    "channel_name": "채널명",
+    "channel_description": "채널 설명",
+    "automation_enabled": "자동화",
+    "intro_format_prompt": "인트로 형식",
+    "outro_format_prompt": "아웃트로 형식",
+    "upload_days": "업로드 요일",
+    "upload_time": "업로드 시간",
+    "default_video_length_minutes": "기본 영상 길이(분)",
+    "target_age_group": "대상 연령",
+    "narration_style": "나레이션 스타일",
+    "narration_speed": "나레이션 속도",
+    "subtitle_font": "자막 글꼴",
+    "subtitle_color": "자막 글자색",
+    "subtitle_outline_color": "자막 테두리색",
+    "subtitle_position": "자막 위치",
+    "visual_style_default": "기본 그림체",
+    "thumbnail_style_prompt": "썸네일 스타일",
+    "caution_prompt": "주의사항",
+    "alert_phone_number": "알림 전화번호",
+}
 
 CHANNEL_TOPIC_COLUMNS = [
     "topic_id",
@@ -117,6 +172,33 @@ CHANNEL_TOPIC_COLUMNS = [
     "updated_at",
 ]
 
+CHANNEL_TOPIC_LABELS = {
+    "topic_id": "소주제 ID",
+    "week_key": "주차",
+    "upload_day": "업로드 요일",
+    "upload_datetime": "업로드 예정시각",
+    "selected": "선택",
+    "topic_title": "영상 제목",
+    "topic_type": "주제 유형",
+    "planning_note": "기획 의도",
+    "script_summary": "대본 요약",
+    "full_script": "전체 대본",
+    "video_length_minutes": "영상 길이(분)",
+    "visual_style": "그림체",
+    "user_custom_style_prompt": "사용자 그림체 요청",
+    "status": "상태",
+    "review_link": "검수 링크",
+    "edit_session_link": "편집 링크",
+    "thumbnail_url": "썸네일 URL",
+    "rendered_video_url": "완성 영상 URL",
+    "youtube_video_id": "유튜브 영상 ID",
+    "youtube_private_url": "비공개 영상 URL",
+    "youtube_public_url": "공개 영상 URL",
+    "error_message": "오류 메시지",
+    "created_at": "생성 시각",
+    "updated_at": "수정 시각",
+}
+
 REVIEW_COLUMNS = [
     "task_id",
     "channel_id",
@@ -130,6 +212,20 @@ REVIEW_COLUMNS = [
     "user_action",
     "updated_at",
 ]
+
+REVIEW_LABELS = {
+    "task_id": "작업 ID",
+    "channel_id": "채널 ID",
+    "channel_name": "채널명",
+    "topic_id": "소주제 ID",
+    "task_type": "작업 유형",
+    "title": "제목",
+    "status": "상태",
+    "deadline": "마감일",
+    "review_link": "검수 링크",
+    "user_action": "사용자 요청",
+    "updated_at": "수정 시각",
+}
 
 UPLOAD_COLUMNS = [
     "upload_id",
@@ -146,6 +242,31 @@ UPLOAD_COLUMNS = [
     "error_message",
     "updated_at",
 ]
+
+UPLOAD_LABELS = {
+    "upload_id": "업로드 ID",
+    "channel_id": "채널 ID",
+    "channel_name": "채널명",
+    "topic_id": "소주제 ID",
+    "title": "제목",
+    "upload_datetime": "업로드 시각",
+    "publish_datetime": "공개 예정시각",
+    "status": "상태",
+    "youtube_video_id": "유튜브 영상 ID",
+    "youtube_private_url": "비공개 영상 URL",
+    "youtube_public_url": "공개 영상 URL",
+    "error_message": "오류 메시지",
+    "updated_at": "수정 시각",
+}
+
+VISIBLE_HEADER_LABELS = {
+    **CHANNEL_LIST_LABELS,
+    **CHANNEL_TOPIC_LABELS,
+    **REVIEW_LABELS,
+    **UPLOAD_LABELS,
+}
+
+HEADER_ALIASES = {label: key for key, label in VISIBLE_HEADER_LABELS.items()}
 
 JOB_COLUMNS = [
     "job_id",
@@ -181,6 +302,9 @@ ASSET_COLUMNS = [
     "asset_type",
     "asset_url",
     "prompt",
+    "source",
+    "credit",
+    "license",
     "status",
     "version",
     "created_at",

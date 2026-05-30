@@ -5,3 +5,7 @@ __pycache__/
 encrypted_tokens/
 storage/
 .pytest_cache/
+service-account.json
+client_secret.json
+frontend/node_modules/
+frontend/dist/

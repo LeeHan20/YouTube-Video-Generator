@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import itertools
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from app.core.constants import CHANNEL_TOPIC_COLUMNS
 from app.core.config import get_settings
 from app.core.time import iso_now
+from app.core.time import KST
 from app.google.repository import Channel, SheetsRepository
-from app.pipeline.week import DAY_ORDER, is_last_enabled_upload_day, next_week_key
+from app.pipeline.week import DAY_LABELS, DAY_ORDER, is_last_enabled_upload_day, next_week_key
 from app.services.script_generator import ScriptGenerator
 from app.services.topic_generator import TopicGenerator
 
@@ -86,7 +87,7 @@ class Stage1Pipeline:
                 {
                     **topic,
                     "week_key": target_week,
-                    "upload_day": upload_day,
+                    "upload_day": DAY_LABELS.get(upload_day, upload_day),
                     "upload_datetime": upload_datetime,
                     "selected": "FALSE",
                     "full_script": full_script,
@@ -99,7 +100,7 @@ class Stage1Pipeline:
             )
             rows.append(row)
 
-        self.repository.append_channel_topics(channel.sheet_name, rows)
+        self.repository.prepend_channel_topics(channel.sheet_name, rows)
         self.repository.append_review_tasks(
             [
                 {
@@ -127,14 +128,16 @@ class Stage1Pipeline:
     def _upload_datetime_for_week(week_key: str, upload_day: str, upload_time: str) -> str:
         year = int(week_key[:4])
         week = int(week_key[-2:])
-        monday = datetime.fromisocalendar(year, week, 1).replace(tzinfo=UTC)
+        monday = datetime.fromisocalendar(year, week, 1).replace(tzinfo=KST)
         day = monday + timedelta(days=DAY_ORDER[upload_day])
         hour, minute = [int(part) for part in upload_time.split(":")[:2]]
-        return day.replace(hour=hour, minute=minute).isoformat()
+        dt = day.replace(hour=hour, minute=minute)
+        return f"{dt.strftime('%Y-%m-%d')}\n{dt.strftime('%H:%M')}"
 
     @staticmethod
     def _selection_deadline(week_key: str) -> str:
         year = int(week_key[:4])
         week = int(week_key[-2:])
-        monday = datetime.fromisocalendar(year, week, 1).replace(tzinfo=UTC)
-        return monday.replace(hour=23, minute=59).isoformat()
+        monday = datetime.fromisocalendar(year, week, 1).replace(tzinfo=KST)
+        dt = monday.replace(hour=23, minute=59)
+        return f"{dt.strftime('%Y-%m-%d')}\n{dt.strftime('%H:%M')}"
