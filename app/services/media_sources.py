@@ -13,6 +13,7 @@ from app.core.config import get_settings
 from app.pipeline.models import Scene
 from app.services.ai_client import get_ai_client
 from app.services.image_generation import ImageGenerationService
+from app.services.prompt_loader import render_prompt
 
 
 @dataclass
@@ -23,6 +24,7 @@ class MediaAsset:
     license: str
     prompt: str
     local_path: Path | None = None
+    image_hash: str = ""
 
 
 @dataclass
@@ -45,6 +47,7 @@ class MediaCandidate(MediaAsset):
             "reason": self.reason,
             "width": self.width,
             "height": self.height,
+            "image_hash": self.image_hash,
         }
 
 
@@ -57,12 +60,28 @@ class MediaSourceService:
         self.root.mkdir(parents=True, exist_ok=True)
         self.image_generation = ImageGenerationService()
 
-    def create_asset(self, topic_id: str, scene: Scene, source_mode: str = "auto", user_instruction: str = "") -> MediaAsset:
+    def create_asset(
+        self,
+        topic_id: str,
+        scene: Scene,
+        source_mode: str = "auto",
+        user_instruction: str = "",
+        excluded_asset_urls: set[str] | None = None,
+        excluded_hashes: set[str] | None = None,
+    ) -> MediaAsset:
         mode = (source_mode or self.settings.media_source_mode or "crawl_image").lower()
         if mode == "auto":
             mode = self._auto_mode(scene)
         if mode in {"crawl", "crawl_image", "crawl_video"}:
-            candidates = self.crawl_candidates(topic_id, scene, mode, user_instruction, limit=1)
+            candidates = self.crawl_candidates(
+                topic_id,
+                scene,
+                mode,
+                user_instruction,
+                limit=1,
+                excluded_asset_urls=excluded_asset_urls,
+                excluded_hashes=excluded_hashes,
+            )
             if candidates:
                 return candidates[0]
             return self._crawl_failed_placeholder(topic_id, scene, user_instruction)
@@ -77,14 +96,18 @@ class MediaSourceService:
         source_mode: str = "crawl_image",
         user_instruction: str = "",
         limit: int = 4,
+        excluded_asset_urls: set[str] | None = None,
+        excluded_hashes: set[str] | None = None,
     ) -> list[MediaCandidate]:
         mode = "crawl_video" if source_mode == "crawl_video" else "crawl_image"
         candidates: list[MediaCandidate] = []
+        excluded_asset_urls = excluded_asset_urls or set()
+        excluded_hashes = excluded_hashes or set()
         api_url = "https://commons.wikimedia.org/w/api.php"
         try:
             headers = {"User-Agent": "Auto2YouTubeAutomation/0.1 (local review tool; contact: admin@example.com)"}
             with httpx.Client(timeout=self.settings.media_crawl_timeout_seconds, follow_redirects=True, headers=headers) as client:
-                seen_urls: set[str] = set()
+                seen_urls: set[str] = set(excluded_asset_urls)
                 for query in self._search_queries(scene, user_instruction):
                     params = {
                         "action": "query",
@@ -118,6 +141,10 @@ class MediaSourceService:
                             continue
                         seen_urls.add(asset_url)
                         local_path = self._download_asset(client, topic_id, scene.scene_id, asset_url, mime)
+                        image_hash = self._file_hash(local_path)
+                        if image_hash and image_hash in excluded_hashes:
+                            local_path.unlink(missing_ok=True)
+                            continue
                         width, height = self._dimensions(local_path, info)
                         score, reason = self._score_candidate(scene, page, info, license_name, width, height, user_instruction)
                         digest = hashlib.sha1(f"{asset_url}:{score}".encode("utf-8")).hexdigest()[:12]
@@ -130,6 +157,7 @@ class MediaSourceService:
                                 license=license_name or "wikimedia commons",
                                 prompt=query,
                                 local_path=local_path,
+                                image_hash=image_hash,
                                 score=score,
                                 reason=reason,
                                 width=width,
@@ -149,6 +177,7 @@ class MediaSourceService:
                     user_instruction,
                     seen={item.asset_url for item in candidates},
                     limit=limit - len(candidates),
+                    excluded_hashes=excluded_hashes,
                 )
             )
             candidates.sort(key=lambda item: item.score, reverse=True)
@@ -192,6 +221,7 @@ class MediaSourceService:
             license="generated",
             prompt=improved_prompt,
             local_path=generated_path,
+            image_hash=self._file_hash(generated_path),
         )
 
     def _download_asset(self, client: httpx.Client, topic_id: str, scene_id: str, url: str, mime: str) -> Path:
@@ -211,8 +241,10 @@ class MediaSourceService:
         user_instruction: str,
         seen: set[str],
         limit: int = 4,
+        excluded_hashes: set[str] | None = None,
     ) -> list[MediaCandidate]:
         candidates: list[MediaCandidate] = []
+        excluded_hashes = excluded_hashes or set()
         if limit <= 0:
             return candidates
         headers = {"User-Agent": "Auto2YouTubeAutomation/0.1 (local review tool; contact: admin@example.com)"}
@@ -244,6 +276,10 @@ class MediaSourceService:
                             except Exception:
                                 continue
                         seen.add(source_url)
+                        image_hash = self._file_hash(local_path)
+                        if image_hash and image_hash in excluded_hashes:
+                            local_path.unlink(missing_ok=True)
+                            continue
                         width, height = self._dimensions(local_path, {"width": item.get("width"), "height": item.get("height")})
                         info = {"extmetadata": {"ImageDescription": {"value": item.get("title", "")}}}
                         page = {"title": item.get("title", "")}
@@ -262,6 +298,7 @@ class MediaSourceService:
                                 license=f"{item.get('license', 'cc')} {item.get('license_version', '')}".strip(),
                                 prompt=query,
                                 local_path=local_path,
+                                image_hash=image_hash,
                                 score=score,
                                 reason=f"{reason} · Openverse 공개 라이선스 후보",
                                 width=width,
@@ -275,11 +312,10 @@ class MediaSourceService:
         return candidates
 
     def _improve_generation_prompt(self, scene: Scene, user_instruction: str) -> str:
-        prompt = (
-            "영상 장면용 이미지 생성 프롬프트를 한국어로 정리해줘. "
-            "저작권 문제가 없는 원본 생성 이미지여야 하고, 50대 이상 시청자가 편안하게 볼 수 있어야 한다.\n\n"
-            f"장면 설명: {scene.visual_prompt}\n"
-            f"사용자 지시: {user_instruction or '없음'}"
+        prompt = render_prompt(
+            "image_generation_prompt_improvement",
+            scene_visual_prompt=scene.visual_prompt,
+            user_instruction=user_instruction or "없음",
         )
         try:
             text = get_ai_client().generate_text(prompt, max_tokens=900).text.strip()
@@ -292,14 +328,17 @@ class MediaSourceService:
 
     @staticmethod
     def _search_query(scene: Scene, user_instruction: str) -> str:
-        text = f"{scene.title} {scene.subtitle} {user_instruction}".strip()
+        keyword_text = " ".join(scene.image_keywords or [])
+        text = f"{keyword_text} {scene.caption} {scene.narration} {user_instruction}".strip()
         text = re.sub(r"[^\w\s가-힣]", " ", text)
         words = [word for word in text.split() if len(word) > 1][:8]
         return " ".join(words) or "health lifestyle"
 
     def _search_queries(self, scene: Scene, user_instruction: str) -> list[str]:
         primary = self._search_query(scene, user_instruction)
-        text = f"{scene.title} {scene.subtitle} {scene.narration} {scene.visual_prompt}"
+        keyword_text = " ".join(scene.image_keywords or [])
+        text = f"{keyword_text} {scene.caption} {scene.subtitle} {scene.narration} {scene.visual_prompt}"
+        keyword_query = self._semantic_keyword_query(text)
         fallback = "healthy lifestyle senior people"
         if any(keyword in text for keyword in ["역사", "문화", "전쟁", "왕", "조선"]):
             fallback = "history education illustration"
@@ -307,12 +346,29 @@ class MediaSourceService:
             fallback = "family home lifestyle"
         elif any(keyword in text for keyword in ["건강", "운동", "병원", "혈압", "식사"]):
             fallback = "senior walking"
-        queries = [primary, fallback, "healthy food vegetables", "older people walking", "public domain health illustration"]
+        queries = [primary, keyword_query, fallback, "healthy food vegetables", "older people walking", "public domain health illustration"]
         unique = []
         for query in queries:
             if query and query not in unique:
                 unique.append(query)
         return unique
+
+    @staticmethod
+    def _semantic_keyword_query(text: str) -> str:
+        lowered = text.lower()
+        pairs = [
+            (["혈당", "당뇨", "스파이크", "당분"], "blood sugar glucose diabetes healthy food"),
+            (["간", "지방간", "해독"], "liver health medical illustration"),
+            (["수면", "잠", "불면"], "senior sleep bedroom healthy lifestyle"),
+            (["식습관", "식사", "채소", "음식", "영양"], "healthy meal vegetables senior"),
+            (["운동", "걷기", "산책"], "older people walking park exercise"),
+            (["물", "차", "커피", "음료"], "healthy drink water tea senior"),
+            (["병원", "검진", "의사"], "doctor consultation senior health"),
+        ]
+        for keywords, query in pairs:
+            if any(keyword in lowered for keyword in keywords):
+                return query
+        return "senior health lifestyle clear photo"
 
     def _allowed_license(self, license_name: str) -> bool:
         if not license_name:
@@ -376,6 +432,17 @@ class MediaSourceService:
             score += 6
             reasons.append("50대 이상 생활 정보 맥락에 비교적 적합")
         return max(0, min(100, score)), " · ".join(reasons or ["출처와 이미지 형식을 확인한 공개 이미지 후보"])
+
+    @staticmethod
+    def _file_hash(path: Path) -> str:
+        try:
+            digest = hashlib.sha1()
+            with path.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            return digest.hexdigest()
+        except Exception:
+            return ""
 
     @staticmethod
     def _dimensions(path: Path, info: dict) -> tuple[int, int]:

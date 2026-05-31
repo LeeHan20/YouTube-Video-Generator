@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.services.ai_client import get_ai_client
+from app.services.prompt_loader import render_prompt
 
 
 class ScriptGenerator:
@@ -13,22 +14,12 @@ class ScriptGenerator:
         return self._generate_fallback(title, summary, length_minutes)
 
     def _generate_with_ai(self, title: str, summary: str, length_minutes: int) -> str:
-        prompt = f"""
-다음 YouTube 영상의 전체 나레이션 대본을 한국어로 작성해줘.
-
-제목: {title}
-요약: {summary}
-목표 길이: {max(1, length_minutes)}분
-대상: 50대 이상
-
-규칙:
-- 문장은 짧고 명확하게 쓴다.
-- 천천히 읽어도 자연스럽게 쓴다.
-- 인트로, 본문 챕터, 마무리 구조를 포함한다.
-- 건강/금융/법률처럼 민감할 수 있는 내용은 단정하지 않는다.
-- 과장, 허위, 공포 마케팅을 피한다.
-- 바로 녹음 가능한 대본만 작성한다.
-"""
+        prompt = render_prompt(
+            "script_generation",
+            title=title,
+            summary=summary,
+            length_minutes=max(1, length_minutes),
+        )
         try:
             text = get_ai_client().generate_text(prompt, max_tokens=5000).text.strip()
         except Exception:

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import shutil
 from datetime import datetime
 
 from app.core.config import get_settings
+from app.core.constants import JOB_COLUMNS
 from app.core.time import iso_now
 from app.google.repository import Channel, SheetsRepository
 from app.pipeline.models import RenderManifest
@@ -19,9 +21,15 @@ class Stage2Pipeline:
         self.media = PlaceholderMediaGenerator()
         self.settings = get_settings()
 
-    def run_once(self) -> dict[str, int]:
+    def run_once(self, force: bool = False, reset_outputs: bool = False) -> dict[str, int]:
         stats = {"selected_topics": 0, "rendered_topics": 0, "skipped_topics": 0}
-        self._progress("[stage2] 시작: 선택된 소주제 확인")
+        mode = []
+        if force:
+            mode.append("force")
+        if reset_outputs:
+            mode.append("test/reset_outputs")
+        mode_label = f" ({', '.join(mode)})" if mode else ""
+        self._progress(f"[stage2] 시작: 선택된 소주제 확인{mode_label}")
         for channel in self.repository.list_enabled_channels():
             self._progress(f"[stage2] 채널 확인: {channel.channel_name}")
             for topic in self.repository.list_channel_topics(channel.sheet_name):
@@ -29,18 +37,22 @@ class Stage2Pipeline:
                     continue
                 stats["selected_topics"] += 1
                 self._progress(f"[stage2] 선택됨: {topic.get('topic_id')} / {topic.get('topic_title')}")
-                if topic.get("status") not in {"WAITING_USER_SELECTION", "SELECTED", "SCRIPT_GENERATED", "FAILED"}:
+                if not force and topic.get("status") not in {"WAITING_USER_SELECTION", "SELECTED", "SCRIPT_GENERATED", "FAILED", "VIDEO_RENDERING"}:
                     stats["skipped_topics"] += 1
                     self._progress(f"[stage2] 건너뜀: status={topic.get('status')}")
                     continue
-                if self.render_selected_topic(channel, topic):
+                if self.render_selected_topic(channel, topic, force=force, reset_outputs=reset_outputs):
                     stats["rendered_topics"] += 1
         self._progress(f"[stage2] 완료: {stats}")
         return stats
 
-    def render_selected_topic(self, channel: Channel, topic: dict[str, str]) -> bool:
+    def render_selected_topic(self, channel: Channel, topic: dict[str, str], force: bool = False, reset_outputs: bool = False) -> bool:
         topic_id = topic["topic_id"]
         job_id = f"job_stage2_{topic_id}"
+        if reset_outputs:
+            self._reset_local_outputs(topic_id)
+        if force:
+            self._reset_stage2_job(job_id)
         locked = self.repository.acquire_job_lock(
             job_id=job_id,
             job_type="GENERATE_VIDEO_DRAFT",
@@ -182,6 +194,33 @@ class Stage2Pipeline:
         row_number = int(topic["_row_number"])
         topic.update(updates)
         self.repository.update_channel_topic(channel.sheet_name, row_number, topic)
+
+    def _reset_stage2_job(self, job_id: str) -> None:
+        jobs = self.repository.client.read_records("_SYSTEM_JOBS")
+        job = next((row for row in jobs if row.get("job_id") == job_id), None)
+        if not job:
+            return
+        row_number = int(job.pop("_row_number"))
+        job.update(
+            {
+                "status": "PENDING",
+                "locked_by": "",
+                "locked_until": "",
+                "output_json": "",
+                "error_message": "",
+                "updated_at": iso_now(),
+            }
+        )
+        self.repository.client.update_row("_SYSTEM_JOBS", row_number, JOB_COLUMNS, job)
+        self._progress(f"[stage2] force: job 재실행 가능 상태로 변경: {job_id}")
+
+    def _reset_local_outputs(self, topic_id: str) -> None:
+        topic_dir = self.settings.local_storage_dir / "topics" / topic_id
+        if not topic_dir.exists():
+            self._progress(f"[stage2] test: 삭제할 기존 산출물 없음: {topic_dir}")
+            return
+        shutil.rmtree(topic_dir)
+        self._progress(f"[stage2] test: 기존 로컬 산출물 삭제 완료: {topic_dir}")
 
     @staticmethod
     def _int_or_default(value: str | None, default: int) -> int:

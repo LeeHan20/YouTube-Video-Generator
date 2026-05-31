@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import re
+import zipfile
 from pathlib import Path
 from time import time
+from urllib.parse import unquote
 
 from app.core.config import get_settings
 from app.core.time import iso_now
@@ -48,6 +50,9 @@ class ReviewService:
         original_duration = scene.duration_seconds
         asset = self.media_sources.create_asset(manifest.topic_id, scene, source_mode=source_mode, user_instruction=user_instruction)
         scene.asset_url = asset.asset_url
+        scene.selected_image_url = asset.asset_url
+        scene.selected_image_path = str(asset.local_path or "")
+        scene.image_hash = asset.image_hash
         scene.asset_source = asset.source
         scene.asset_credit = asset.credit
         scene.asset_license = asset.license
@@ -112,6 +117,8 @@ class ReviewService:
                 source_mode="crawl_image",
                 user_instruction=user_instruction,
                 limit=4,
+                excluded_asset_urls={item.asset_url for item in manifest.scenes if item.scene_id != scene.scene_id and item.asset_url},
+                excluded_hashes={item.image_hash for item in manifest.scenes if item.scene_id != scene.scene_id and item.image_hash},
             )
             scene.image_candidates = [candidate.as_dict() for candidate in candidates]
             scene.selected_image_candidate = ""
@@ -154,6 +161,9 @@ class ReviewService:
         if not candidate:
             raise ValueError("이미지 후보를 찾을 수 없습니다.")
         scene.asset_url = candidate.get("asset_url", "")
+        scene.selected_image_url = scene.asset_url
+        scene.selected_image_path = ""
+        scene.image_hash = candidate.get("image_hash", "")
         scene.asset_source = candidate.get("source", "crawl_image")
         scene.asset_credit = candidate.get("credit", "")
         scene.asset_license = candidate.get("license", "")
@@ -213,6 +223,9 @@ class ReviewService:
         path = upload_dir / f"{scene.scene_id}_{int(time())}_{safe_stem}{suffix}"
         path.write_bytes(content)
         scene.asset_url = self.media._url_for(path)
+        scene.selected_image_url = scene.asset_url
+        scene.selected_image_path = str(path)
+        scene.image_hash = self.media._file_hash(path)
         scene.asset_source = "user_upload"
         scene.asset_credit = f"사용자 업로드: {filename or path.name}"
         scene.asset_license = "user provided"
@@ -280,6 +293,36 @@ class ReviewService:
         self.repository.update_channel_topic(channel.sheet_name, int(topic["_row_number"]), topic)
         return {"status": "FINAL_APPROVED", "topic_id": session["topic_id"]}
 
+    def editable_package(self, session_id: str) -> Path:
+        session = self.repository.get_session(session_id)
+        if not session:
+            raise ValueError("검수 세션을 찾을 수 없습니다.")
+        manifest = self._read_manifest(session["topic_id"])
+        for scene in manifest.scenes:
+            if not scene.caption_segments:
+                scene.caption_segments = self.media._caption_segments_for_scene(scene)
+        topic_dir = self.settings.local_storage_dir / "topics" / manifest.topic_id
+        export_dir = topic_dir / "exports"
+        export_dir.mkdir(parents=True, exist_ok=True)
+        package_path = export_dir / f"{manifest.topic_id}_{manifest.render_id or 'latest'}_editable.zip"
+        project = self._editable_project(manifest)
+        srt_text = self.media._srt(manifest.scenes)
+        vtt_text = self._vtt_from_srt(srt_text)
+        with zipfile.ZipFile(package_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("auto2_project.json", json.dumps(project, ensure_ascii=False, indent=2))
+            archive.writestr("subtitles.srt", srt_text)
+            archive.writestr("subtitles.vtt", vtt_text)
+            archive.writestr("manifest.json", manifest.model_dump_json(indent=2))
+            video_path = self._path_from_url(manifest.video_url)
+            if video_path and video_path.exists():
+                archive.write(video_path, f"media/{video_path.name}")
+            for scene in manifest.scenes:
+                for path_value in [scene.selected_image_path, scene.tts_audio_path]:
+                    path = Path(path_value) if path_value else None
+                    if path and path.exists():
+                        archive.write(path, f"media/{scene.scene_id}/{path.name}")
+        return package_path
+
     def _read_manifest(self, topic_id: str) -> RenderManifest:
         path = self._manifest_path(topic_id)
         if not path.exists():
@@ -292,6 +335,67 @@ class ReviewService:
 
     def _manifest_path(self, topic_id: str) -> Path:
         return self.settings.local_storage_dir / "topics" / topic_id / "manifest.json"
+
+    def _path_from_url(self, url: str) -> Path | None:
+        if not url or "/files/" not in url:
+            return None
+        relative = unquote(url.split("/files/", 1)[1])
+        return self.settings.local_storage_dir / relative
+
+    @staticmethod
+    def _editable_project(manifest: RenderManifest) -> dict:
+        return {
+            "format": "auto2-editable-project-v1",
+            "topic_id": manifest.topic_id,
+            "title": manifest.title,
+            "render_id": manifest.render_id,
+            "video_url": manifest.video_url,
+            "layers": {
+                "video_scenes": [
+                    {
+                        "scene_id": scene.scene_id,
+                        "title": scene.title,
+                        "start_seconds": scene.start_seconds,
+                        "end_seconds": scene.end_time,
+                        "duration_seconds": scene.duration_seconds,
+                        "asset_url": scene.asset_url,
+                        "asset_path": scene.selected_image_path,
+                        "asset_source": scene.asset_source,
+                        "image_keywords": scene.image_keywords,
+                    }
+                    for scene in manifest.scenes
+                ],
+                "narration": [
+                    {
+                        "scene_id": scene.scene_id,
+                        "text": scene.narration,
+                        "audio_path": scene.tts_audio_path,
+                        "start_seconds": scene.start_seconds,
+                        "end_seconds": scene.end_time,
+                    }
+                    for scene in manifest.scenes
+                ],
+                "captions": [
+                    {
+                        "caption_id": segment.caption_id,
+                        "scene_id": segment.scene_id,
+                        "text": segment.text,
+                        "start_seconds": segment.start_seconds,
+                        "end_seconds": segment.end_seconds,
+                        "duration_seconds": segment.duration_seconds,
+                        "style": {"line_count": 1, "position": "bottom_center"},
+                    }
+                    for scene in manifest.scenes
+                    for segment in scene.caption_segments
+                ],
+            },
+        }
+
+    @staticmethod
+    def _vtt_from_srt(srt_text: str) -> str:
+        converted = re.sub(r"(?m)^\d+\s*\n", "", srt_text)
+        converted = converted.replace(",", ".")
+        return "WEBVTT\n\n" + converted.strip() + "\n"
 
     def _append_history(self, session: dict[str, str], item: dict, bump_version: bool = True) -> None:
         history = json.loads(session.get("replacement_history_json") or "[]")

@@ -9,6 +9,7 @@ from pathlib import Path
 import httpx
 
 from app.core.config import get_settings
+from app.services.prompt_loader import render_prompt
 
 
 class NarrationService:
@@ -77,7 +78,11 @@ class NarrationService:
                 api_key=self.settings.gemini_api_key,
                 http_options=types.HttpOptions(timeout=self.settings.gemini_tts_timeout_seconds * 1000),
             )
-            prompt = f"[{self.settings.narration_speaking_style}] {text}"
+            prompt = render_prompt(
+                "gemini_tts_style",
+                narration_speaking_style=self.settings.narration_speaking_style,
+                text=text,
+            )
             response = client.models.generate_content(
                 model=self.settings.gemini_tts_model,
                 contents=prompt,

@@ -5,6 +5,7 @@ import json
 
 from app.google.repository import Channel
 from app.services.ai_client import get_ai_client
+from app.services.prompt_loader import render_prompt
 
 
 TOPIC_PATTERNS = [
@@ -27,31 +28,12 @@ class TopicGenerator:
         return self._generate_fallback(channel, week_key, count)
 
     def _generate_with_ai(self, channel: Channel, week_key: str, count: int) -> list[dict[str, str]]:
-        prompt = f"""
-채널명: {channel.channel_name}
-주차: {week_key}
-필요한 소주제 수: {count}
-대상: 50대 이상 한국어 시청자
-
-규칙:
-- 정보제공형과 클릭유도형을 섞는다.
-- 제목은 실제 YouTube 제목으로 바로 사용할 수 있어야 한다.
-- 과장, 허위, 공포 마케팅을 피한다.
-- 건강/금융/법률 관련 주제는 단정적 표현을 피한다.
-- 각 항목마다 실제 기획 의도와 대본 요약을 구체적으로 쓴다.
-
-아래 JSON만 반환해라.
-{{
-  "topics": [
-    {{
-      "topic_title": "제목",
-      "topic_type": "정보제공형 또는 클릭유도형",
-      "planning_note": "이 영상을 왜 만들고 어떤 흐름으로 전달할지",
-      "script_summary": "인트로, 본문 핵심, 마무리가 보이는 구체적 요약"
-    }}
-  ]
-}}
-"""
+        prompt = render_prompt(
+            "topic_candidates",
+            channel_name=channel.channel_name,
+            week_key=week_key,
+            count=count,
+        )
         try:
             data = get_ai_client().generate_json(prompt, max_tokens=8192)
         except (json.JSONDecodeError, ValueError, KeyError):
@@ -91,22 +73,12 @@ class TopicGenerator:
         return topics
 
     def enrich_existing_topic(self, channel_name: str, title: str, topic_type: str = "정보제공형") -> dict[str, str]:
-        prompt = f"""
-다음 YouTube 소주제에 대해 실제 기획 의도와 대본 요약을 한국어로 작성해줘.
-
-채널명: {channel_name}
-제목: {title}
-주제 유형: {topic_type}
-대상: 50대 이상
-
-규칙:
-- 테스트 문구가 아니라 제목에 맞는 구체적인 내용을 쓴다.
-- 과장, 허위, 공포 마케팅을 피한다.
-- 건강/금융/법률은 단정하지 않는다.
-- JSON만 반환한다.
-
-{{"planning_note":"...", "script_summary":"..."}}
-"""
+        prompt = render_prompt(
+            "topic_enrichment",
+            channel_name=channel_name,
+            title=title,
+            topic_type=topic_type,
+        )
         try:
             data = get_ai_client().generate_json(prompt, max_tokens=1400)
             planning_note = str(data.get("planning_note", "")).strip()

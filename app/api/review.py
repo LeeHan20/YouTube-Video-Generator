@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
 from app.api.auth import require_admin
@@ -129,6 +129,19 @@ def approve(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@router.get("/api/review/{session_id}/editable-package")
+def editable_package(
+    session_id: str,
+    _: str = Depends(require_admin),
+    service: ReviewService = Depends(review_service),
+) -> FileResponse:
+    try:
+        path = service.editable_package(session_id)
+        return FileResponse(path, filename=path.name, media_type="application/zip")
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 REVIEW_HTML = """<!doctype html>
 <html lang="ko">
 <head>
@@ -198,7 +211,7 @@ REVIEW_HTML = """<!doctype html>
     <header class="topbar">
       <div class="brand"><span class="dot"></span><span>Auto2 영상 편집</span></div>
       <div class="muted" id="status">불러오는 중...</div>
-      <div><button class="secondary" id="rerenderBtn" onclick="rerender()">재렌더링</button> <button class="approve" id="approveBtn" onclick="approve()">최종 승인</button></div>
+      <div><button class="secondary" id="downloadBtn" onclick="downloadEditable()">편집 파일 다운로드</button> <button class="secondary" id="rerenderBtn" onclick="rerender()">재렌더링</button> <button class="approve" id="approveBtn" onclick="approve()">최종 승인</button></div>
     </header>
     <main class="workspace">
       <aside class="panel">
@@ -292,7 +305,8 @@ REVIEW_HTML = """<!doctype html>
       const scenes = data.manifest.scenes;
       document.getElementById("videoTrack").innerHTML = scenes.map(clipHtml).join("");
       document.getElementById("audioTrack").innerHTML = scenes.map(item => `<div class="clip audio ${item.scene_id === selectedSceneId ? "active" : ""}" onclick="selectScene('${item.scene_id}')"><div class="clip-title">${item.title}</div><div class="clip-time">나레이션 ${Math.round(item.duration_seconds || 0)}초</div></div>`).join("");
-      document.getElementById("captionTrack").innerHTML = scenes.map(item => `<div class="clip caption ${item.scene_id === selectedSceneId ? "active" : ""}" onclick="selectScene('${item.scene_id}')"><div class="clip-title">${item.subtitle || ""}</div><div class="clip-time">자막</div></div>`).join("");
+      const captions = scenes.flatMap(item => (item.caption_segments || [{scene_id:item.scene_id, text:item.subtitle || "", start_seconds:item.start_seconds, end_seconds:(item.start_seconds || 0) + (item.duration_seconds || 0)}]).map(segment => ({...segment, active:item.scene_id === selectedSceneId})));
+      document.getElementById("captionTrack").innerHTML = captions.map(item => `<div class="clip caption ${item.active ? "active" : ""}" onclick="selectScene('${item.scene_id}')"><div class="clip-title">${item.text || ""}</div><div class="clip-time">${Math.round(item.start_seconds || 0)}초 자막</div></div>`).join("");
     }
     function renderCandidates(item) {
       const candidates = item.image_candidates || [];
@@ -415,7 +429,8 @@ REVIEW_HTML = """<!doctype html>
       try {
         const res = await fetch(`/api/review/${sessionId}/rerender`, {method:"POST", credentials:"same-origin"});
         data = await res.json(); render();
-        showMessage("영상 렌더링이 완료되었습니다.", true);
+        setBusy(false);
+        showMessage("영상 렌더링이 완료되었습니다. 이어서 편집할 수 있습니다.", true);
       } finally {
         setBusy(false);
       }
@@ -432,10 +447,14 @@ REVIEW_HTML = """<!doctype html>
         showMessage("영상 렌더링 중입니다... 잠시만 기다려주세요.");
         const res = await fetch(`/api/review/${sessionId}/rerender`, {method:"POST", credentials:"same-origin"});
         data = await res.json(); render();
-        showMessage("영상 렌더링이 완료되었습니다.", true);
+        setBusy(false);
+        showMessage("영상 렌더링이 완료되었습니다. 이어서 편집할 수 있습니다.", true);
       } finally {
         setBusy(false);
       }
+    }
+    function downloadEditable() {
+      window.location.href = `/api/review/${sessionId}/editable-package`;
     }
     function setBusy(value, message) {
       busy = value;

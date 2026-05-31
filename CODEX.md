@@ -25,10 +25,20 @@
 - 기본 이미지 소스는 크롤링이다.
 - AI 이미지 생성은 사용자가 명시적으로 선택했을 때만 실행한다.
 - Stage2 초안 생성에서는 장면당 최종 에셋 1개만 수집한다. 후보 4개 수집은 검수 UI에서 사용자가 “이미지 다시 가져오기”를 눌렀을 때만 실행한다.
+- 장면은 항상 `scene_id`, `narration`, `caption/subtitle`, `asset_url`, `tts_audio_path`, `duration_seconds`, `start_seconds`, `end_time` 기준으로 관리한다.
+- 전체 대본, raw script, prompt 문구를 자막이나 TTS에 직접 넣지 않는다. 자막 우선순위는 `caption`, `subtitle`, `narration`이다.
+- 장면별 TTS는 정확히 한 파일만 만들고, 최종 mp4에는 오디오 스트림이 하나만 남아야 한다.
+- 장면 길이와 자막 timestamp는 고정값이 아니라 실제 TTS audio duration 기준으로 계산한다.
+- 렌더링 후에는 mp4 존재 여부, 오디오 스트림 수, scene/audio/image/subtitle 개수, 긴 대본 자막 유입, 이미지 반복, 영상 길이 차이를 검증한다.
 - 이미지 후보를 다시 가져올 때 기존 장면 이미지는 유지한다.
 - 후보 이미지 선택 또는 업로드 시 이미지 관련 필드만 바꾸고, 장면 ID, 순서, 대본, 자막, 나레이션, 프롬프트, 타임라인, 길이는 보존한다.
+- 이미지 선택은 scene별 키워드와 기존 사용 이미지 URL/hash를 고려해 반복 이미지를 피한다.
+- 장면 이미지 검색은 전체 주제보다 해당 scene narration/caption의 대표어를 우선한다.
+- 이미지 장면 레이어와 자막 레이어는 별도 타임라인으로 관리한다. 이미지 scene 수와 caption segment 수가 같을 필요는 없다.
+- 자막 segment는 한 줄만 사용하며, 긴 문장은 여러 caption segment로 나눠 TTS duration 안에 배치한다.
 - 렌더링은 원본 이미지 비율을 유지하는 contain/pad 방식을 기본으로 한다. crop/fill을 기본값으로 되돌리지 않는다.
 - 자막은 대본/나레이션에 맞춰 자동 생성하고 영상에 보이도록 합성한다.
+- 사용자가 후편집할 수 있도록 편집용 다운로드는 프로젝트 JSON, SRT/VTT, manifest, 사용 에셋을 포함한다.
 
 ## 상태값과 Sheets 동기화
 
@@ -42,9 +52,18 @@
 
 - 사용자가 터미널에서 실행하기 쉬운 형태를 우선한다.
 - 루트에서 실행하는 기본 형태는 `PYTHONPATH=. .venv/bin/python -m scripts.<module>`이다.
+- Stage1 수동 실행에서 `--force`는 날짜/주차/완료 job 조건을 무시하고 자동화 ON 채널의 소주제를 생성하며, `--test`는 해당 채널의 기존 Stage1 관련 Sheets 행과 로컬 topic 산출물을 삭제한 뒤 새로 생성한다. `--test`는 `--force`를 포함한다.
+- Stage2 수동 실행에서 `--force`는 상태/완료 job 조건을 무시하고 선택된 소주제를 재실행하며, `--test`는 해당 topic의 기존 로컬 산출물을 삭제한 뒤 새로 생성한다. `--test`는 `--force`를 포함한다.
 - 전체 Google Sheets 탭 초기화가 필요할 때는 `scripts.reset_all_sheets`를 사용한다. 이 스크립트는 모든 탭을 삭제하고 기본 템플릿을 재생성하므로 실행 전 의도를 명확히 확인한다.
 - 외부 AI/TTS 호출은 타임아웃과 fallback을 가져야 한다.
 - 기본 TTS provider는 Supertone이다. `SUPERTONE_API_KEY`와 `SUPERTONE_VOICE_ID`는 `.env`에만 두고 커밋하지 않는다.
 - 개발 테스트에서 빠른 렌더가 필요하면 `NARRATION_PROVIDER=system` 또는 `GEMINI_API_KEY=`로 Gemini TTS를 우회할 수 있어야 한다.
 - 오래 걸리는 스크립트, 특히 Stage2는 터미널에 단계별 진행 메시지를 출력해야 한다.
 - 파괴적 스크립트는 이름과 출력에서 삭제/초기화 범위를 분명히 드러낸다.
+
+## AI 프롬프트 관리
+
+- Gemini/Claude 텍스트 호출에 쓰는 긴 프롬프트는 코드에 직접 쓰지 않고 `sys_prompts/*.md`에서 관리한다.
+- `sys_prompts` 파일 상단의 설명 영역은 개발자 확인용이며 모델에 전달하지 않는다.
+- 실제 모델에 전달되는 내용은 `---PROMPT---` 아래 본문만 사용한다.
+- 프롬프트 파일에서 Python `format_map` placeholder를 사용하므로, 모델에 보낼 JSON 예시의 중괄호는 `{{`와 `}}`로 이스케이프한다.
