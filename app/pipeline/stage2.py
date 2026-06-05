@@ -65,15 +65,15 @@ class Stage2Pipeline:
             self._progress(f"[stage2] lock 획득 실패 또는 이미 완료: {job_id}")
             return False
         try:
-            self._render_selected_topic_locked(channel, topic)
-            self.repository.complete_job(job_id, json.dumps({"status": "VIDEO_RENDERED"}, ensure_ascii=False))
-            return True
+            result_status = self._render_selected_topic_locked(channel, topic)
+            self.repository.complete_job(job_id, json.dumps({"status": result_status}, ensure_ascii=False))
+            return result_status == "VIDEO_RENDERED"
         except Exception as exc:
             self.repository.fail_job(job_id, str(exc))
             self._update_topic(channel, topic, {"status": "FAILED", "error_message": str(exc), "updated_at": iso_now()})
             raise
 
-    def _render_selected_topic_locked(self, channel: Channel, topic: dict[str, str]) -> None:
+    def _render_selected_topic_locked(self, channel: Channel, topic: dict[str, str]) -> str:
         self._progress(f"[stage2] 작업 시작: {topic['topic_id']}")
         length = self._int_or_default(topic.get("video_length_minutes"), channel.default_video_length_minutes)
         visual_style = topic.get("user_custom_style_prompt") or topic.get("visual_style") or channel.default_visual_style
@@ -91,7 +91,7 @@ class Stage2Pipeline:
         scenes = self.media.generate_scene_assets(
             topic["topic_id"],
             scenes,
-            source_mode=self.settings.media_source_mode,
+            source_mode="auto",
             progress=self._progress,
         )
         self._progress("[stage2] 자막 파일 초안 생성")
@@ -106,29 +106,65 @@ class Stage2Pipeline:
             subtitle_url=subtitle_url,
             created_at=iso_now(),
         )
+        manifest_path = self.media.write_manifest(manifest)
+        session_id = f"session_{topic['topic_id']}"
+        edit_url = f"{self.settings.public_base_url.rstrip('/')}/review/{session_id}"
+        self.repository.append_or_update_session(
+            {
+                "session_id": session_id,
+                "topic_id": topic["topic_id"],
+                "edit_session_url": edit_url,
+                "current_render_version": "1",
+                "replacement_history_json": "[]",
+                "created_at": iso_now(),
+                "updated_at": iso_now(),
+            }
+        )
+        self._update_topic(
+            channel,
+            topic,
+            {
+                "status": "ASSET_REVIEW",
+                "upload_datetime": upload_datetime,
+                "review_link": edit_url,
+                "edit_session_link": edit_url,
+                "error_message": "",
+                "updated_at": iso_now(),
+            },
+        )
+        self.repository.append_assets(self._scene_asset_rows(topic["topic_id"], scenes))
+        self._progress(f"[stage2] manifest 저장: {manifest_path}")
+
+        missing_assets = [scene for scene in scenes if not scene.asset_url or scene.asset_source == "asset_required"]
+        if missing_assets:
+            missing_labels = ", ".join(scene.scene_id for scene in missing_assets)
+            self._progress(f"[stage2] 렌더링 보류: 에셋이 필요한 장면 {len(missing_assets)}개 ({missing_labels})")
+            self.repository.append_review_tasks(
+                [
+                    {
+                        "task_id": f"asset_review_{topic['topic_id']}",
+                        "channel_id": channel.channel_id,
+                        "channel_name": channel.channel_name,
+                        "topic_id": topic["topic_id"],
+                        "task_type": "장면 에셋 선택 필요",
+                        "title": title,
+                        "status": "ASSET_REVIEW",
+                        "deadline": "",
+                        "review_link": edit_url,
+                        "user_action": "",
+                        "updated_at": iso_now(),
+                    }
+                ]
+            )
+            return "ASSET_REVIEW"
+
         self._progress("[stage2] 영상 렌더링 시작")
         video_path, video_url = self.media.render_video(manifest, progress=self._progress)
         manifest.video_url = video_url
         self._progress("[stage2] manifest 저장")
         manifest_path = self.media.write_manifest(manifest)
 
-        assets = [
-            {
-                "asset_id": f"{topic['topic_id']}_{scene.scene_id}",
-                "topic_id": topic["topic_id"],
-                "scene_id": scene.scene_id,
-                "asset_type": "placeholder_scene",
-                "asset_url": scene.asset_url,
-                "prompt": scene.visual_prompt,
-                "status": "READY",
-                "version": "1",
-                "source": scene.asset_source,
-                "credit": scene.asset_credit,
-                "license": scene.asset_license,
-                "created_at": iso_now(),
-            }
-            for scene in scenes
-        ]
+        assets = []
         assets.append(
             {
                 "asset_id": f"{topic['topic_id']}_video",
@@ -145,8 +181,6 @@ class Stage2Pipeline:
         self.repository.append_assets(assets)
         self._progress("[stage2] _SYSTEM_ASSETS 기록 완료")
 
-        session_id = f"session_{topic['topic_id']}"
-        edit_url = f"{self.settings.public_base_url.rstrip('/')}/review/{session_id}"
         self.repository.append_or_update_session(
             {
                 "session_id": session_id,
@@ -189,11 +223,41 @@ class Stage2Pipeline:
             ]
         )
         self._progress(f"[stage2] 작업 완료: {topic['topic_id']} -> {video_url}")
+        return "VIDEO_RENDERED"
+
+    def _scene_asset_rows(self, topic_id: str, scenes) -> list[dict[str, str]]:
+        return [
+            {
+                "asset_id": f"{topic_id}_{scene.scene_id}",
+                "topic_id": topic_id,
+                "scene_id": scene.scene_id,
+                "asset_type": scene.media_type or "scene_asset",
+                "asset_url": scene.asset_url,
+                "prompt": scene.visual_prompt,
+                "status": "READY" if scene.asset_url else "NEEDS_USER_ACTION",
+                "version": "1",
+                "source": scene.asset_source,
+                "credit": scene.asset_credit,
+                "license": scene.asset_license,
+                "created_at": iso_now(),
+            }
+            for scene in scenes
+        ]
 
     def _update_topic(self, channel: Channel, topic: dict[str, str], updates: dict[str, str]) -> None:
-        row_number = int(topic["_row_number"])
+        row_number = topic.get("_row_number")
+        sheet_name = channel.sheet_name
+        if not row_number:
+            found = self.repository.find_topic(topic.get("topic_id", ""))
+            if not found:
+                raise KeyError("_row_number")
+            found_channel, found_topic = found
+            sheet_name = found_channel.sheet_name
+            row_number = found_topic["_row_number"]
+            topic.update(found_topic)
+        record = {**topic, **updates}
         topic.update(updates)
-        self.repository.update_channel_topic(channel.sheet_name, row_number, topic)
+        self.repository.update_channel_topic(sheet_name, int(row_number), record)
 
     def _reset_stage2_job(self, job_id: str) -> None:
         jobs = self.repository.client.read_records("_SYSTEM_JOBS")

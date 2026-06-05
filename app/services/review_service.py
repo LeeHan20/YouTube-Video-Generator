@@ -149,6 +149,34 @@ class ReviewService:
         )
         return self.get_session_payload(session_id)
 
+    def update_scene_prompt(self, session_id: str, scene_id: str, visual_prompt: str) -> dict:
+        session = self.repository.get_session(session_id)
+        if not session:
+            raise ValueError("검수 세션을 찾을 수 없습니다.")
+        manifest = self._read_manifest(session["topic_id"])
+        scene = next((item for item in manifest.scenes if item.scene_id == scene_id), None)
+        if not scene:
+            raise ValueError("장면을 찾을 수 없습니다.")
+        cleaned = re.sub(r"\s+", " ", visual_prompt or "").strip()
+        if not cleaned:
+            raise ValueError("장면 프롬프트를 입력해 주세요.")
+        scene.visual_prompt = cleaned
+        scene.crawl_prompt = cleaned
+        scene.generation_prompt = cleaned
+        scene.image_keywords = self.scene_planner._representative_keywords(cleaned)
+        self._write_manifest(manifest)
+        self._append_history(
+            session,
+            {
+                "scene_id": scene_id,
+                "action": "update_scene_prompt",
+                "dirty": False,
+                "visual_prompt": cleaned,
+            },
+            bump_version=False,
+        )
+        return self.get_session_payload(session_id)
+
     def select_image_candidate(self, session_id: str, scene_id: str, candidate_id: str) -> dict:
         session = self.repository.get_session(session_id)
         if not session:
@@ -327,7 +355,10 @@ class ReviewService:
         path = self._manifest_path(topic_id)
         if not path.exists():
             raise ValueError("렌더링 manifest를 찾을 수 없습니다.")
-        return RenderManifest.model_validate_json(path.read_text(encoding="utf-8"))
+        manifest = RenderManifest.model_validate_json(path.read_text(encoding="utf-8"))
+        if self._normalize_legacy_visual_prompts(manifest):
+            self._write_manifest(manifest)
+        return manifest
 
     def _write_manifest(self, manifest: RenderManifest) -> None:
         path = self._manifest_path(manifest.topic_id)
@@ -335,6 +366,20 @@ class ReviewService:
 
     def _manifest_path(self, topic_id: str) -> Path:
         return self.settings.local_storage_dir / "topics" / topic_id / "manifest.json"
+
+    def _normalize_legacy_visual_prompts(self, manifest: RenderManifest) -> bool:
+        changed = False
+        for scene in manifest.scenes:
+            if self.scene_planner.is_standard_visual_prompt(scene.visual_prompt):
+                continue
+            scene.visual_prompt = self.scene_planner.standard_visual_prompt(
+                title=manifest.title,
+                narration=scene.narration or scene.subtitle or scene.caption,
+                visual_style=manifest.visual_style,
+                media_type=scene.media_type,
+            )
+            changed = True
+        return changed
 
     def _path_from_url(self, url: str) -> Path | None:
         if not url or "/files/" not in url:

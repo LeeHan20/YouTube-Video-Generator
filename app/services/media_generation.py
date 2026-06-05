@@ -42,7 +42,7 @@ class PlaceholderMediaGenerator:
         used_hashes = {scene.image_hash for scene in scenes if scene.image_hash}
         for index, scene in enumerate(scenes, start=1):
             if progress:
-                progress(f"[assets] {index}/{len(scenes)} {scene.scene_id} 이미지 수집 시작")
+                progress(f"[assets] {index}/{len(scenes)} {scene.scene_id} 에셋 수집 시작 ({scene.media_type})")
             original_prompt = scene.visual_prompt
             asset = self.sources.create_asset(
                 topic_id,
@@ -58,13 +58,13 @@ class PlaceholderMediaGenerator:
             scene.asset_source = asset.source
             scene.asset_credit = asset.credit
             scene.asset_license = asset.license
-            scene.visual_prompt = original_prompt if asset.source.startswith("crawl_") else asset.prompt
+            scene.visual_prompt = original_prompt
             if scene.asset_url:
                 used_urls.add(scene.asset_url)
             if scene.image_hash:
                 used_hashes.add(scene.image_hash)
             if progress:
-                progress(f"[assets] {index}/{len(scenes)} {scene.scene_id} 완료: {scene.asset_source}")
+                progress(f"[assets] {index}/{len(scenes)} {scene.scene_id} 완료: {scene.asset_source} / {scene.media_type}")
         return scenes
 
     def write_manifest(self, manifest: RenderManifest) -> Path:
@@ -176,6 +176,11 @@ class PlaceholderMediaGenerator:
 
     def _render_scene_segment(self, scene: Scene, audio_path: Path, output_path: Path, duration: float) -> list[str]:
         output_path.parent.mkdir(parents=True, exist_ok=True)
+        if not scene.asset_url:
+            raise RuntimeError(
+                f"{scene.scene_id}에 렌더링 가능한 이미지/영상이 없습니다. "
+                "검수 화면에서 후보를 다시 크롤링하거나 직접 업로드 또는 AI 이미지 생성을 선택해 주세요."
+            )
         asset_path = self._path_from_url(scene.asset_url)
         overlay_paths = self._write_caption_overlays(scene, output_path.parent.parent / "subtitles")
         overlay_inputs: list[str] = []
@@ -183,16 +188,10 @@ class PlaceholderMediaGenerator:
             overlay_inputs.extend(["-loop", "1", "-i", str(overlay_path)])
         filter_complex = self._caption_overlay_filter(scene, overlay_count=len(overlay_paths))
         if not self._is_video(asset_path) and not self._is_image(asset_path):
-            generated_path = output_path.parent.parent / "assets" / f"{scene.scene_id}_render_fallback.png"
-            self.image_generation.generate(scene.visual_prompt or self._subtitle_text(scene), generated_path, title=scene.title)
-            asset_path = generated_path
-            scene.asset_url = self._url_for(generated_path)
-            scene.selected_image_url = scene.asset_url
-            scene.selected_image_path = str(generated_path)
-            scene.image_hash = self._file_hash(generated_path)
-            scene.asset_source = "render_fallback_image"
-            scene.asset_credit = "Local generated render image"
-            scene.asset_license = "generated"
+            raise RuntimeError(
+                f"{scene.scene_id}에 렌더링 가능한 이미지/영상이 없습니다. "
+                "검수 화면에서 후보를 다시 크롤링하거나 직접 업로드 또는 AI 이미지 생성을 선택해 주세요."
+            )
         if self._is_video(asset_path):
             command = [
                 "ffmpeg",
@@ -415,7 +414,7 @@ class PlaceholderMediaGenerator:
 
     @staticmethod
     def _is_video(path: Path) -> bool:
-        return path.suffix.lower() in {".mp4", ".webm", ".mov", ".mkv"}
+        return path.suffix.lower() in {".mp4", ".webm", ".mov", ".mkv", ".ogv"}
 
     @staticmethod
     def _is_image(path: Path) -> bool:

@@ -4,6 +4,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
+import google_auth_httplib2
+import httplib2
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -13,6 +15,7 @@ from app.core.config import get_settings
 
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+RETRYABLE_GOOGLE_EXCEPTIONS = (HttpError, TimeoutError, OSError)
 
 
 @dataclass(frozen=True)
@@ -33,10 +36,12 @@ class SheetsClient:
         self.spreadsheet_id = spreadsheet_id or settings.google_sheets_spreadsheet_id
         if not self.spreadsheet_id:
             raise ValueError("GOOGLE_SHEETS_SPREADSHEET_ID is required")
-        self.service = build("sheets", "v4", credentials=credentials, cache_discovery=False)
+        http = httplib2.Http(timeout=settings.google_api_timeout_seconds)
+        authorized_http = google_auth_httplib2.AuthorizedHttp(credentials, http=http)
+        self.service = build("sheets", "v4", http=authorized_http, cache_discovery=False)
 
     @retry(
-        retry=retry_if_exception_type(HttpError),
+        retry=retry_if_exception_type(RETRYABLE_GOOGLE_EXCEPTIONS),
         wait=wait_exponential(multiplier=1, min=1, max=10),
         stop=stop_after_attempt(3),
     )
@@ -53,7 +58,7 @@ class SheetsClient:
         }
 
     @retry(
-        retry=retry_if_exception_type(HttpError),
+        retry=retry_if_exception_type(RETRYABLE_GOOGLE_EXCEPTIONS),
         wait=wait_exponential(multiplier=1, min=1, max=10),
         stop=stop_after_attempt(3),
     )
@@ -67,7 +72,7 @@ class SheetsClient:
         )
 
     @retry(
-        retry=retry_if_exception_type(HttpError),
+        retry=retry_if_exception_type(RETRYABLE_GOOGLE_EXCEPTIONS),
         wait=wait_exponential(multiplier=1, min=1, max=10),
         stop=stop_after_attempt(3),
     )
@@ -81,7 +86,7 @@ class SheetsClient:
         return response.get("values", [])
 
     @retry(
-        retry=retry_if_exception_type(HttpError),
+        retry=retry_if_exception_type(RETRYABLE_GOOGLE_EXCEPTIONS),
         wait=wait_exponential(multiplier=1, min=1, max=10),
         stop=stop_after_attempt(3),
     )
@@ -94,7 +99,7 @@ class SheetsClient:
         ).execute()
 
     @retry(
-        retry=retry_if_exception_type(HttpError),
+        retry=retry_if_exception_type(RETRYABLE_GOOGLE_EXCEPTIONS),
         wait=wait_exponential(multiplier=1, min=1, max=10),
         stop=stop_after_attempt(3),
     )
@@ -103,7 +108,7 @@ class SheetsClient:
             spreadsheetId=self.spreadsheet_id,
             range=range_name,
             valueInputOption="USER_ENTERED",
-            insertDataOption="INSERT_ROWS",
+            insertDataOption="OVERWRITE",
             body={"values": list(values)},
         ).execute()
 

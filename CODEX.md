@@ -24,6 +24,10 @@
 
 - 기본 이미지 소스는 크롤링이다.
 - AI 이미지 생성은 사용자가 명시적으로 선택했을 때만 실행한다.
+- Stage2 장면 분할은 대본의 빈 줄 기준 단락을 우선한다. 이미지/영상 수를 10개 같은 고정값으로 제한하지 않는다.
+- 첫 번째와 두 번째 장면은 기본적으로 영상 클립(`media_type=video`)을 먼저 크롤링한다. 이후 장면은 이미지 크롤링을 기본으로 한다.
+- 크롤링 실패 시 렌더링 단계에서 몰래 AI 이미지나 placeholder로 대체하지 않는다. 사용자가 검수 UI에서 후보 재크롤링, 직접 업로드, AI 이미지 생성을 명시적으로 선택하게 한다.
+- 장면 프롬프트는 검수 UI에서 사용자가 직접 수정할 수 있어야 하고, 수정된 프롬프트는 다음 크롤링/생성 요청에 반영되어야 한다.
 - Stage2 초안 생성에서는 장면당 최종 에셋 1개만 수집한다. 후보 4개 수집은 검수 UI에서 사용자가 “이미지 다시 가져오기”를 눌렀을 때만 실행한다.
 - 장면은 항상 `scene_id`, `narration`, `caption/subtitle`, `asset_url`, `tts_audio_path`, `duration_seconds`, `start_seconds`, `end_time` 기준으로 관리한다.
 - 전체 대본, raw script, prompt 문구를 자막이나 TTS에 직접 넣지 않는다. 자막 우선순위는 `caption`, `subtitle`, `narration`이다.
@@ -34,6 +38,9 @@
 - 후보 이미지 선택 또는 업로드 시 이미지 관련 필드만 바꾸고, 장면 ID, 순서, 대본, 자막, 나레이션, 프롬프트, 타임라인, 길이는 보존한다.
 - 이미지 선택은 scene별 키워드와 기존 사용 이미지 URL/hash를 고려해 반복 이미지를 피한다.
 - 장면 이미지 검색은 전체 주제보다 해당 scene narration/caption의 대표어를 우선한다.
+- Openverse/Wikimedia 검색은 좁은 후보에서 첫 이미지를 고르지 않는다. scene별 focused query로 넓은 후보 풀을 모은 뒤 점수와 출처 다양성으로 최종 후보를 고른다.
+- `MEDIA_CRAWL_MAX_RESULTS`는 영상 품질을 위해 기본 32 이상을 권장한다. 너무 낮추면 같은 건강/시니어 이미지가 반복될 수 있다.
+- Openverse 익명 API는 `page_size` 20 초과 요청을 거부한다. 후보 풀을 넓힐 때도 한 요청의 page_size는 20 이하로 유지하고 여러 쿼리로 확장한다.
 - 이미지 장면 레이어와 자막 레이어는 별도 타임라인으로 관리한다. 이미지 scene 수와 caption segment 수가 같을 필요는 없다.
 - 자막 segment는 한 줄만 사용하며, 긴 문장은 여러 caption segment로 나눠 TTS duration 안에 배치한다.
 - 렌더링은 원본 이미지 비율을 유지하는 contain/pad 방식을 기본으로 한다. crop/fill을 기본값으로 되돌리지 않는다.
@@ -55,10 +62,12 @@
 - Stage1 수동 실행에서 `--force`는 날짜/주차/완료 job 조건을 무시하고 자동화 ON 채널의 소주제를 생성하며, `--test`는 해당 채널의 기존 Stage1 관련 Sheets 행과 로컬 topic 산출물을 삭제한 뒤 새로 생성한다. `--test`는 `--force`를 포함한다.
 - Stage2 수동 실행에서 `--force`는 상태/완료 job 조건을 무시하고 선택된 소주제를 재실행하며, `--test`는 해당 topic의 기존 로컬 산출물을 삭제한 뒤 새로 생성한다. `--test`는 `--force`를 포함한다.
 - 전체 Google Sheets 탭 초기화가 필요할 때는 `scripts.reset_all_sheets`를 사용한다. 이 스크립트는 모든 탭을 삭제하고 기본 템플릿을 재생성하므로 실행 전 의도를 명확히 확인한다.
+- 시트 템플릿만 만들거나 다시 적용할 때는 `scripts.create_sheets_template`를 사용한다. `--force`는 기존 데이터를 보존하고 템플릿/서식만 재적용하며, `--test`는 기존 탭을 삭제한 뒤 새 템플릿을 만든다.
 - 외부 AI/TTS 호출은 타임아웃과 fallback을 가져야 한다.
 - 기본 TTS provider는 Supertone이다. `SUPERTONE_API_KEY`와 `SUPERTONE_VOICE_ID`는 `.env`에만 두고 커밋하지 않는다.
 - 개발 테스트에서 빠른 렌더가 필요하면 `NARRATION_PROVIDER=system` 또는 `GEMINI_API_KEY=`로 Gemini TTS를 우회할 수 있어야 한다.
 - 오래 걸리는 스크립트, 특히 Stage2는 터미널에 단계별 진행 메시지를 출력해야 한다.
+- Google Sheets API는 인증 토큰 발급 단계에서도 네트워크 타임아웃이 날 수 있다. `GOOGLE_API_TIMEOUT_SECONDS`로 timeout을 명시하고, SSL handshake/네트워크 계열 오류는 재시도 대상으로 유지한다.
 - 파괴적 스크립트는 이름과 출력에서 삭제/초기화 범위를 분명히 드러낸다.
 
 ## AI 프롬프트 관리

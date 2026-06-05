@@ -39,11 +39,23 @@ worker.py
 
 ## 로컬 실행
 
+레포 루트에서 실행합니다.
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
+```
+
+이미 만들어진 `.venv`를 다른 폴더로 옮긴 뒤 `bad interpreter` 오류가 나면 가상환경 경로가 깨진 상태입니다. 이때는 `.venv`를 새로 만듭니다.
+
+```bash
+deactivate 2>/dev/null
+mv .venv .venv_broken
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
 `.env`에 다음을 설정합니다.
@@ -70,7 +82,7 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 서비스 계정 이메일을 대상 Google Sheet에 편집자로 공유한 뒤 실행합니다.
 
 ```bash
-python3 scripts/create_sheets_template.py
+python -m scripts.create_sheets_template
 ```
 
 생성되는 탭:
@@ -97,8 +109,8 @@ python3 scripts/create_sheets_template.py
 3. 마지막 업로드 요일에 자동 생성됩니다. 테스트할 때는 `--force`를 사용합니다.
 
 ```bash
-python3 scripts/run_stage1_once.py --force
-python3 scripts/run_stage2_once.py
+python -m scripts.run_stage1_once --force
+python -m scripts.run_stage2_once
 ```
 
 FastAPI로 실행:
@@ -122,13 +134,13 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 상시 worker:
 
 ```bash
-python3 worker.py
+python worker.py
 ```
 
 단일 tick 테스트:
 
 ```bash
-python3 scripts/run_worker_tick.py
+python -m scripts.run_worker_tick
 ```
 
 ## 1단계 처리 규칙
@@ -163,6 +175,8 @@ FastAPI 내장 화면:
 ```
 
 React + TypeScript UI:
+
+프론트엔드는 루트가 아니라 `frontend/`에 `package.json`이 있습니다.
 
 ```bash
 cd frontend

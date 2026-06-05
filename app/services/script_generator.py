@@ -7,6 +7,10 @@ from app.services.prompt_loader import render_prompt
 class ScriptGenerator:
     """Generate a real Korean narration script with an AI-first, safe fallback."""
 
+    CHARS_PER_MINUTE = 380
+    MIN_TARGET_RATIO = 0.9
+    MAX_EXPANSION_ATTEMPTS = 2
+
     def generate(self, title: str, summary: str, length_minutes: int) -> str:
         ai_script = self._generate_with_ai(title, summary, length_minutes)
         if ai_script:
@@ -14,19 +18,53 @@ class ScriptGenerator:
         return self._generate_fallback(title, summary, length_minutes)
 
     def _generate_with_ai(self, title: str, summary: str, length_minutes: int) -> str:
+        length = max(1, length_minutes)
+        target_seconds = length * 60
+        target_chars = self._target_chars(length)
+        min_chars = self._min_target_chars(length)
         prompt = render_prompt(
             "script_generation",
             title=title,
             summary=summary,
-            length_minutes=max(1, length_minutes),
+            length_minutes=length,
+            target_seconds=target_seconds,
+            target_chars=target_chars,
+            min_chars=min_chars,
         )
         try:
-            text = get_ai_client().generate_text(prompt, max_tokens=5000).text.strip()
+            client = get_ai_client()
+            text = client.generate_text(prompt, max_tokens=8000).text.strip()
         except Exception:
             return ""
         if "AI API 키가 설정되지 않아" in text:
             return ""
-        return self._clean_ai_script(text)
+        script = self._clean_ai_script(text)
+        for _ in range(self.MAX_EXPANSION_ATTEMPTS):
+            if self._spoken_char_count(script) >= min_chars:
+                break
+            expansion_prompt = render_prompt(
+                "script_expansion",
+                title=title,
+                summary=summary,
+                length_minutes=length,
+                target_seconds=target_seconds,
+                target_chars=target_chars,
+                min_chars=min_chars,
+                current_chars=self._spoken_char_count(script),
+                estimated_seconds=self._estimated_seconds(script),
+                current_script=script,
+            )
+            try:
+                expanded = client.generate_text(expansion_prompt, max_tokens=9000).text.strip()
+            except Exception:
+                break
+            if "AI API 키가 설정되지 않아" in expanded:
+                break
+            expanded_script = self._clean_ai_script(expanded)
+            if self._spoken_char_count(expanded_script) <= self._spoken_char_count(script):
+                break
+            script = expanded_script
+        return script
 
     def _generate_fallback(self, title: str, summary: str, length_minutes: int) -> str:
         length = max(1, length_minutes)
@@ -87,3 +125,19 @@ class ScriptGenerator:
             if cleaned.startswith(prefix):
                 cleaned = cleaned[len(prefix) :].strip()
         return cleaned.strip("- \n")
+
+    @classmethod
+    def _target_chars(cls, length_minutes: int) -> int:
+        return max(1, length_minutes) * cls.CHARS_PER_MINUTE
+
+    @classmethod
+    def _min_target_chars(cls, length_minutes: int) -> int:
+        return int(cls._target_chars(length_minutes) * cls.MIN_TARGET_RATIO)
+
+    @classmethod
+    def _estimated_seconds(cls, script: str) -> int:
+        return int(round(cls._spoken_char_count(script) / cls.CHARS_PER_MINUTE * 60))
+
+    @staticmethod
+    def _spoken_char_count(script: str) -> int:
+        return len(" ".join((script or "").split()))

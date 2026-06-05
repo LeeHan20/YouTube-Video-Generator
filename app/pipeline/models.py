@@ -19,6 +19,9 @@ class Scene(BaseModel):
     caption: str = ""
     subtitle: str
     visual_prompt: str
+    crawl_prompt: str = ""
+    generation_prompt: str = ""
+    media_type: str = "image"
     image_keywords: list[str] = Field(default_factory=list)
     start_seconds: float = 0
     start_time: float = 0

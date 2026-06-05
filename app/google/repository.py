@@ -81,8 +81,9 @@ class SheetsRepository:
         # header_row + count + 1 is left empty as a week separator
 
     def update_channel_topic(self, sheet_name: str, row_number: int, topic: dict[str, str]) -> None:
-        topic.pop("_row_number", None)
-        self.client.update_row(sheet_name, row_number, CHANNEL_TOPIC_COLUMNS, topic)
+        record = dict(topic)
+        record.pop("_row_number", None)
+        self.client.update_row(sheet_name, row_number, CHANNEL_TOPIC_COLUMNS, record)
 
     def append_review_tasks(self, tasks: list[dict[str, str]]) -> None:
         self.client.append_records("검수대기", REVIEW_COLUMNS, tasks)

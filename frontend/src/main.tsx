@@ -149,7 +149,7 @@ function Track(props: { label: string; scenes: Scene[]; selected: string; onSele
 
 function preview(url: string) {
   const lower = url.toLowerCase();
-  if (lower.endsWith(".mp4") || lower.endsWith(".webm")) return <video controls src={url} />;
+  if (lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.endsWith(".ogv") || lower.endsWith(".mov")) return <video controls src={url} />;
   if (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".svg") || lower.endsWith(".gif")) return <img src={url} />;
   return <iframe src={url} />;
 }

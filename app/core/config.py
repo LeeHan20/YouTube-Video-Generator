@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,6 +16,7 @@ class Settings(BaseSettings):
 
     google_application_credentials: str = Field(default="./service-account.json")
     google_sheets_spreadsheet_id: str = ""
+    google_api_timeout_seconds: int = 30
 
     token_encryption_key: str = ""
     encrypted_token_dir: Path = Path("./encrypted_tokens")
@@ -59,9 +60,37 @@ class Settings(BaseSettings):
     media_crawl_max_results: int = 6
     media_crawl_allowed_licenses: str = "cc0,public domain,cc-by,cc-by-sa"
     media_crawl_timeout_seconds: int = 20
+    google_image_search_api_key: str = ""
+    google_image_search_cx: str = ""
+    google_image_search_rights: str = ""
+    topic_generation_multiplier: int = 3
 
     google_oauth_client_secrets: str = "./client_secret.json"
     youtube_oauth_redirect_uri: str = "http://localhost:8000/admin/youtube/oauth/callback"
+
+    @field_validator(
+        "app_port",
+        "google_api_timeout_seconds",
+        "scheduler_interval_seconds",
+        "gemini_tts_timeout_seconds",
+        "supertone_timeout_seconds",
+        "media_crawl_max_results",
+        "media_crawl_timeout_seconds",
+        "topic_generation_multiplier",
+        mode="before",
+    )
+    @classmethod
+    def _clean_int_env_value(cls, value):
+        if isinstance(value, str):
+            return value.strip().rstrip("\\").strip()
+        return value
+
+    @field_validator("supertone_speed", mode="before")
+    @classmethod
+    def _clean_float_env_value(cls, value):
+        if isinstance(value, str):
+            return value.strip().rstrip("\\").strip()
+        return value
 
 
 @lru_cache

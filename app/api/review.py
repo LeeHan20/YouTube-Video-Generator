@@ -29,6 +29,11 @@ class SelectCandidateRequest(BaseModel):
     candidate_id: str
 
 
+class UpdateScenePromptRequest(BaseModel):
+    scene_id: str
+    visual_prompt: str
+
+
 def review_service() -> ReviewService:
     return ReviewService(SheetsRepository(SheetsClient()))
 
@@ -85,6 +90,19 @@ def select_image_candidate(
 ) -> dict:
     try:
         return service.select_image_candidate(session_id, payload.scene_id, payload.candidate_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/api/review/{session_id}/scene-prompt")
+def update_scene_prompt(
+    session_id: str,
+    payload: UpdateScenePromptRequest,
+    _: str = Depends(require_admin),
+    service: ReviewService = Depends(review_service),
+) -> dict:
+    try:
+        return service.update_scene_prompt(session_id, payload.scene_id, payload.visual_prompt)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -216,7 +234,7 @@ REVIEW_HTML = """<!doctype html>
     <main class="workspace">
       <aside class="panel">
         <h2>미디어 소스</h2>
-        <div class="asset-card" onclick="setSourceMode('auto')"><strong>자동 선택</strong><div class="muted">장면 내용에 따라 AI 생성 또는 크롤링</div></div>
+        <div class="asset-card" onclick="setSourceMode('auto')"><strong>자동 선택</strong><div class="muted">장면 내용에 따라 이미지/영상 크롤링</div></div>
         <div class="asset-card" onclick="setSourceMode('ai_image')"><strong>AI 이미지 생성</strong><div class="muted">원본 생성 이미지, 저작권 리스크 최소화</div></div>
         <div class="asset-card active" onclick="setSourceMode('crawl_image')"><strong>이미지 크롤링</strong><div class="muted">라이선스 확인 가능한 공개 이미지 후보</div></div>
         <div class="asset-card" onclick="setSourceMode('crawl_video')"><strong>영상 크롤링</strong><div class="muted">초반 30초용 짧은 공개 영상 후보</div></div>
@@ -242,7 +260,8 @@ REVIEW_HTML = """<!doctype html>
           <button id="regenerateBtn" onclick="crawlSelectedScene()">이 장면 이미지 다시 가져오기</button>
           <div class="field"><label>사용자 이미지/영상 업로드</label><input id="assetUpload" type="file" accept="image/*,video/*" onchange="uploadSelectedAsset()"></div>
           <div class="field"><label>크롤링 후보 이미지</label><div class="candidate-grid" id="candidateGrid"></div></div>
-          <div class="field"><label>장면 프롬프트</label><div class="prompt" id="prompt"></div></div>
+          <div class="field"><label>장면 프롬프트</label><textarea id="promptInput" placeholder="이 장면에서 찾을 이미지/영상의 핵심 묘사를 입력하세요."></textarea></div>
+          <button class="secondary" id="savePromptBtn" onclick="saveScenePrompt()">장면 프롬프트 저장</button>
           <div class="field"><label>자막/나레이션</label><div class="prompt" id="subtitle"></div></div>
           <div class="field"><label>출처/라이선스</label><div class="prompt" id="credit"></div></div>
         </div>
@@ -288,7 +307,7 @@ REVIEW_HTML = """<!doctype html>
       document.getElementById("sceneMeta").textContent = `${item.title} · ${Math.round(item.start_seconds)}초`;
       document.getElementById("stage").innerHTML = previewHtml(item.asset_url);
       document.getElementById("assetMeta").textContent = `${item.asset_source || "asset"} · ${item.asset_license || "license pending"}`;
-      document.getElementById("prompt").textContent = item.visual_prompt || "";
+      document.getElementById("promptInput").value = item.visual_prompt || "";
       document.getElementById("subtitle").textContent = item.subtitle || item.narration || "";
       document.getElementById("credit").textContent = [item.asset_credit, item.asset_license].filter(Boolean).join("\\n") || "출처 정보 없음";
       document.getElementById("sourceMode").value = sourceMode;
@@ -342,6 +361,7 @@ REVIEW_HTML = """<!doctype html>
     }
     async function crawlSelectedScene() {
       const item = scene();
+      await saveScenePrompt(false);
       if (sourceMode === "ai_image") {
         await generateSelectedScene(item.scene_id);
         return;
@@ -375,6 +395,7 @@ REVIEW_HTML = """<!doctype html>
     }
     async function crawlScenes(sceneIds) {
       if (busy || !sceneIds.length) return;
+      await saveScenePrompt(false);
       const note = document.getElementById("instruction").value;
       const btn = document.getElementById("regenerateBtn");
       setBusy(true, "이미지 크롤링 중...");
@@ -389,6 +410,26 @@ REVIEW_HTML = """<!doctype html>
       } finally {
         btn.textContent = "이 장면 이미지 다시 가져오기";
         setBusy(false);
+      }
+    }
+    async function saveScenePrompt(showDone=true) {
+      const item = scene();
+      if (!item || busy) return;
+      const prompt = document.getElementById("promptInput").value;
+      if ((prompt || "").trim() === (item.visual_prompt || "").trim()) return;
+      if (showDone) setBusy(true, "장면 프롬프트 저장 중...");
+      try {
+        const res = await fetch(`/api/review/${sessionId}/scene-prompt`, {
+          method: "POST", headers: {"Content-Type":"application/json"},
+          credentials: "same-origin",
+          body: JSON.stringify({scene_id: item.scene_id, visual_prompt: prompt})
+        });
+        if (!res.ok) throw new Error((await res.json()).detail || "장면 프롬프트 저장 실패");
+        data = await res.json();
+        render();
+        if (showDone) showMessage("장면 프롬프트가 저장되었습니다.", true);
+      } finally {
+        if (showDone) setBusy(false);
       }
     }
     async function selectCandidate(sceneId, candidateId) {

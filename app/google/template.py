@@ -224,10 +224,10 @@ class SheetsTemplateBuilder:
         for row_index, key in enumerate(CHANNEL_SETTINGS_KEYS, start=1):
             color = USER_EDITABLE_RGB if key in editable_keys else SYSTEM_RGB
             cell_format = self._body_format(color)
-            fields = "userEnteredFormat(backgroundColor,horizontalAlignment,verticalAlignment,wrapStrategy,textFormat)"
+            format_fields = "backgroundColor,horizontalAlignment,verticalAlignment,wrapStrategy,textFormat"
             if key == "upload_time":
                 cell_format = {**cell_format, "numberFormat": {"type": "TIME", "pattern": "HH:MM"}}
-                fields += ",numberFormat"
+                format_fields += ",numberFormat"
             requests.append(
                 {
                     "repeatCell": {
@@ -239,7 +239,7 @@ class SheetsTemplateBuilder:
                             "endColumnIndex": 2,
                         },
                         "cell": {"userEnteredFormat": cell_format},
-                        "fields": fields,
+                        "fields": f"userEnteredFormat({format_fields})",
                     }
                 }
             )
