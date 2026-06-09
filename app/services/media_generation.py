@@ -15,9 +15,11 @@ from PIL import Image, ImageDraw, ImageFont
 
 from app.core.config import get_settings
 from app.pipeline.models import CaptionSegment, RenderManifest, Scene
+from app.services.caption_alignment import CaptionAlignmentService
 from app.services.media_sources import MediaSourceService
 from app.services.narration import NarrationService
 from app.services.image_generation import ImageGenerationService
+from app.services.image_usage import calculate_phash, make_image_id, update_used_images
 from app.services.render_validation import validate_render
 
 
@@ -29,6 +31,7 @@ class PlaceholderMediaGenerator:
         self.root.mkdir(parents=True, exist_ok=True)
         self.sources = MediaSourceService()
         self.narration = NarrationService()
+        self.caption_alignment = CaptionAlignmentService()
         self.image_generation = ImageGenerationService()
 
     def generate_scene_assets(
@@ -40,6 +43,7 @@ class PlaceholderMediaGenerator:
     ) -> list[Scene]:
         used_urls = {scene.asset_url for scene in scenes if scene.asset_url}
         used_hashes = {scene.image_hash for scene in scenes if scene.image_hash}
+        used_image_ids = {make_image_id(scene.asset_url) for scene in scenes if scene.asset_url}
         for index, scene in enumerate(scenes, start=1):
             if progress:
                 progress(f"[assets] {index}/{len(scenes)} {scene.scene_id} 에셋 수집 시작 ({scene.media_type})")
@@ -50,6 +54,7 @@ class PlaceholderMediaGenerator:
                 source_mode=source_mode,
                 excluded_asset_urls=used_urls,
                 excluded_hashes=used_hashes,
+                current_video_used_image_ids=used_image_ids,
             )
             scene.asset_url = asset.asset_url
             scene.selected_image_url = asset.asset_url
@@ -61,6 +66,7 @@ class PlaceholderMediaGenerator:
             scene.visual_prompt = original_prompt
             if scene.asset_url:
                 used_urls.add(scene.asset_url)
+                used_image_ids.add(make_image_id(scene.asset_url))
             if scene.image_hash:
                 used_hashes.add(scene.image_hash)
             if progress:
@@ -109,6 +115,7 @@ class PlaceholderMediaGenerator:
                 audio_path = topic_dir / "audio" / f"{scene.scene_id}.wav"
                 segment_path = topic_dir / "segments" / f"{index:03d}_{scene.scene_id}.mp4"
                 should_render = dirty_scene_ids is None or scene.scene_id in dirty_scene_ids or not segment_path.exists()
+                caption_chunks = self._caption_chunks(self._narration_for_tts(scene))
                 if should_render or not audio_path.exists():
                     if progress:
                         progress(f"[render] {index}/{len(manifest.scenes)} {scene.scene_id} 나레이션 생성")
@@ -122,7 +129,9 @@ class PlaceholderMediaGenerator:
                 scene.audio_duration_seconds = duration if existing_segment_duration else audio_duration
                 scene.end_time = cursor + duration
                 scene.tts_audio_path = str(audio_path)
-                scene.caption_segments = self._caption_segments_for_scene(scene)
+                aligned_segments = self.caption_alignment.align(scene, audio_path, caption_chunks)
+                caption_alignment_provider = self.caption_alignment.last_provider or "proportional"
+                scene.caption_segments = aligned_segments or self._caption_segments_for_scene(scene, caption_chunks)
                 if should_render:
                     if progress:
                         progress(f"[render] {index}/{len(manifest.scenes)} {scene.scene_id} 장면 렌더링")
@@ -143,6 +152,7 @@ class PlaceholderMediaGenerator:
                         "narration": scene.narration,
                         "subtitle": self._subtitle_text(scene),
                         "caption_segments": [segment.model_dump() for segment in scene.caption_segments],
+                        "caption_alignment_provider": caption_alignment_provider,
                         "selected_image": scene.selected_image_path or scene.asset_url,
                         "tts_audio_path": scene.tts_audio_path,
                         "audio_duration": audio_duration,
@@ -169,10 +179,34 @@ class PlaceholderMediaGenerator:
             self._log_render(log_path, {"event": "validation", "result": validation, "final_output_path": str(video_path)})
             if not validation["ok"]:
                 raise RuntimeError("렌더링 검증 실패: " + " / ".join(validation["errors"]))
+            self._record_used_scene_images(manifest)
         except (FileNotFoundError, subprocess.CalledProcessError) as exc:
             self._log_render(log_path, {"event": "render_failed", "error": str(exc)})
             raise RuntimeError(f"렌더링 실패: {exc}") from exc
         return video_path, self._url_for(video_path)
+
+    def _record_used_scene_images(self, manifest: RenderManifest) -> None:
+        for scene in manifest.scenes:
+            if not scene.asset_url:
+                continue
+            candidate = next((item for item in scene.image_candidates if item.get("candidate_id") == scene.selected_image_candidate), {})
+            try:
+                asset_path = self._path_from_url(scene.asset_url)
+            except ValueError:
+                asset_path = None
+            phash = candidate.get("phash") or (calculate_phash(asset_path) if asset_path and self._is_image(asset_path) else "")
+            update_used_images(
+                selected_image={
+                    "image_id": candidate.get("image_id") or make_image_id(candidate.get("thumbnail_url") or scene.asset_url),
+                    "url": candidate.get("thumbnail_url") or candidate.get("asset_url") or scene.asset_url,
+                    "asset_url": scene.asset_url,
+                    "source": scene.asset_source,
+                    "phash": phash,
+                },
+                video_id=manifest.topic_id,
+                scene_id=scene.scene_id,
+                topic=manifest.title,
+            )
 
     def _render_scene_segment(self, scene: Scene, audio_path: Path, output_path: Path, duration: float) -> list[str]:
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -431,19 +465,20 @@ class PlaceholderMediaGenerator:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         image = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
         draw = ImageDraw.Draw(image)
-        cleaned = self._clean_subtitle_text(text).replace("\n", " ")
+        cleaned = self._clean_caption_overlay_text(text).replace("\n", " ")
         font_size = 54
         font = self._subtitle_font(font_size)
         while font_size > 30:
+            rendered_text = self._wrap_caption_overlay_text(cleaned, font, 1080)
             try:
-                text_width = font.getlength(cleaned)
+                text_width = max((font.getlength(line) for line in rendered_text.splitlines()), default=0)
             except AttributeError:
-                text_width = len(cleaned) * font_size
+                text_width = max((len(line) * font_size for line in rendered_text.splitlines()), default=0)
             if text_width <= 1080:
                 break
             font_size -= 4
             font = self._subtitle_font(font_size)
-        text = cleaned
+        text = self._wrap_caption_overlay_text(cleaned, font, 1080)
         if not text:
             image.save(output_path)
             return
@@ -470,6 +505,37 @@ class PlaceholderMediaGenerator:
             stroke_fill=(255, 220, 64, 255),
         )
         image.save(output_path)
+
+    @staticmethod
+    def _clean_caption_overlay_text(text: str) -> str:
+        cleaned = " ".join((text or "").split()).strip()
+        cleaned = re.sub(r"^#{1,6}\s*", "", cleaned)
+        cleaned = cleaned.replace("**", "")
+        cleaned = re.sub(r"\[[^\]]*(인트로|챕터|아웃트로|BGM|화면|자막|장면)[^\]]*\]", "", cleaned, flags=re.I)
+        cleaned = re.sub(r"^(제목|요약|전체 대본|대본 상세)\s*[:：.]?\s*", "", cleaned)
+        return cleaned
+
+    @staticmethod
+    def _wrap_caption_overlay_text(text: str, font: ImageFont.ImageFont, max_width: int) -> str:
+        if not text:
+            return ""
+        lines: list[str] = []
+        current = ""
+        for token in text.split():
+            candidate = f"{current} {token}".strip()
+            try:
+                width = font.getlength(candidate)
+            except AttributeError:
+                width = len(candidate) * 30
+            if width <= max_width:
+                current = candidate
+                continue
+            if current:
+                lines.append(current)
+            current = token
+        if current:
+            lines.append(current)
+        return "\n".join(lines)
 
     @staticmethod
     def _subtitle_font(size: int) -> ImageFont.ImageFont:
@@ -529,8 +595,12 @@ class PlaceholderMediaGenerator:
             return shortened
         return cleaned
 
-    def _caption_segments_for_scene(self, scene: Scene) -> list[CaptionSegment]:
-        chunks = self._caption_chunks(scene.narration or scene.caption or scene.subtitle)
+    def _caption_segments_for_scene(
+        self,
+        scene: Scene,
+        chunks: list[str] | None = None,
+    ) -> list[CaptionSegment]:
+        chunks = chunks or self._caption_chunks(scene.narration or scene.caption or scene.subtitle)
         if not chunks:
             chunks = [self._subtitle_text(scene)]
         total_weight = sum(max(1, len(chunk)) for chunk in chunks)
@@ -571,7 +641,7 @@ class PlaceholderMediaGenerator:
             if len(part) <= max_chars:
                 chunks.append(part)
                 continue
-            chunks.extend(textwrap.wrap(part, width=max_chars, break_long_words=False, replace_whitespace=False))
+            chunks.extend(PlaceholderMediaGenerator._split_caption_part(part, max_chars))
         merged: list[str] = []
         for chunk in [item.strip() for item in chunks if item.strip()]:
             if merged and len(chunk) <= 5 and len(f"{merged[-1]} {chunk}") <= max_chars:
@@ -579,6 +649,28 @@ class PlaceholderMediaGenerator:
             else:
                 merged.append(chunk)
         return merged
+
+    @staticmethod
+    def _split_caption_part(text: str, max_chars: int) -> list[str]:
+        chunks: list[str] = []
+        current = ""
+        for token in text.split():
+            if len(token) > max_chars:
+                if current:
+                    chunks.append(current)
+                    current = ""
+                chunks.extend(textwrap.wrap(token, width=max_chars, break_long_words=True, replace_whitespace=False))
+                continue
+            candidate = f"{current} {token}".strip()
+            if len(candidate) <= max_chars:
+                current = candidate
+            else:
+                if current:
+                    chunks.append(current)
+                current = token
+        if current:
+            chunks.append(current)
+        return chunks
 
     @staticmethod
     def _file_hash(path: Path | None) -> str:

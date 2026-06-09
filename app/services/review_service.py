@@ -13,6 +13,7 @@ from app.google.repository import SheetsRepository
 from app.pipeline.models import RenderManifest, Scene
 from app.services.media_generation import PlaceholderMediaGenerator
 from app.services.media_sources import MediaSourceService
+from app.services.image_usage import make_image_id
 from app.services.scene_planner import ScenePlanner
 
 
@@ -119,6 +120,7 @@ class ReviewService:
                 limit=4,
                 excluded_asset_urls={item.asset_url for item in manifest.scenes if item.scene_id != scene.scene_id and item.asset_url},
                 excluded_hashes={item.image_hash for item in manifest.scenes if item.scene_id != scene.scene_id and item.image_hash},
+                current_video_used_image_ids=self._current_video_used_image_ids(manifest, scene.scene_id),
             )
             scene.image_candidates = [candidate.as_dict() for candidate in candidates]
             scene.selected_image_candidate = ""
@@ -190,7 +192,7 @@ class ReviewService:
             raise ValueError("이미지 후보를 찾을 수 없습니다.")
         scene.asset_url = candidate.get("asset_url", "")
         scene.selected_image_url = scene.asset_url
-        scene.selected_image_path = ""
+        scene.selected_image_path = candidate.get("local_path") or ""
         scene.image_hash = candidate.get("image_hash", "")
         scene.asset_source = candidate.get("source", "crawl_image")
         scene.asset_credit = candidate.get("credit", "")
@@ -380,6 +382,19 @@ class ReviewService:
             )
             changed = True
         return changed
+
+    @staticmethod
+    def _current_video_used_image_ids(manifest: RenderManifest, exclude_scene_id: str = "") -> set[str]:
+        image_ids: set[str] = set()
+        for scene in manifest.scenes:
+            if scene.scene_id == exclude_scene_id:
+                continue
+            candidate = next((item for item in scene.image_candidates if item.get("candidate_id") == scene.selected_image_candidate), None)
+            if candidate and candidate.get("image_id"):
+                image_ids.add(candidate["image_id"])
+            elif scene.asset_url:
+                image_ids.add(make_image_id(scene.asset_url))
+        return image_ids
 
     def _path_from_url(self, url: str) -> Path | None:
         if not url or "/files/" not in url:

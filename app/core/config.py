@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     narration_provider: str = "supertone"
     narration_allow_system_fallback: bool = True
     narration_speaking_style: str = "very slow, warm, kind Korean announcer tone"
+    aeneas_python_path: str = "./aeneas/venv/bin/python"
+    aeneas_repo_path: str = "./aeneas"
+    aeneas_language: str = "kor"
+    aeneas_runtime_config: str = "tts=macos"
+    aeneas_timeout_seconds: int = 60
     video_clip_provider: str = "placeholder"
     media_source_mode: str = "crawl_image"
     media_crawl_provider: str = "wikimedia"
@@ -63,6 +68,9 @@ class Settings(BaseSettings):
     google_image_search_api_key: str = ""
     google_image_search_cx: str = ""
     google_image_search_rights: str = ""
+    unsplash_access_key: str = ""
+    pexels_api_key: str = ""
+    pixabay_api_key: str = ""
     topic_generation_multiplier: int = 3
 
     google_oauth_client_secrets: str = "./client_secret.json"
@@ -74,6 +82,7 @@ class Settings(BaseSettings):
         "scheduler_interval_seconds",
         "gemini_tts_timeout_seconds",
         "supertone_timeout_seconds",
+        "aeneas_timeout_seconds",
         "media_crawl_max_results",
         "media_crawl_timeout_seconds",
         "topic_generation_multiplier",

@@ -66,11 +66,22 @@ class Stage2Pipeline:
             return False
         try:
             result_status = self._render_selected_topic_locked(channel, topic)
-            self.repository.complete_job(job_id, json.dumps({"status": result_status}, ensure_ascii=False))
+            self._safe_repository_call(
+                "job 완료 기록",
+                self.repository.complete_job,
+                job_id,
+                json.dumps({"status": result_status}, ensure_ascii=False),
+            )
             return result_status == "VIDEO_RENDERED"
         except Exception as exc:
-            self.repository.fail_job(job_id, str(exc))
-            self._update_topic(channel, topic, {"status": "FAILED", "error_message": str(exc), "updated_at": iso_now()})
+            self._safe_repository_call("job 실패 기록", self.repository.fail_job, job_id, str(exc))
+            self._safe_repository_call(
+                "topic 실패 상태 기록",
+                self._update_topic,
+                channel,
+                topic,
+                {"status": "FAILED", "error_message": str(exc), "updated_at": iso_now()},
+            )
             raise
 
     def _render_selected_topic_locked(self, channel: Channel, topic: dict[str, str]) -> str:
@@ -109,7 +120,9 @@ class Stage2Pipeline:
         manifest_path = self.media.write_manifest(manifest)
         session_id = f"session_{topic['topic_id']}"
         edit_url = f"{self.settings.public_base_url.rstrip('/')}/review/{session_id}"
-        self.repository.append_or_update_session(
+        self._safe_repository_call(
+            "검수 세션 기록",
+            self.repository.append_or_update_session,
             {
                 "session_id": session_id,
                 "topic_id": topic["topic_id"],
@@ -118,9 +131,11 @@ class Stage2Pipeline:
                 "replacement_history_json": "[]",
                 "created_at": iso_now(),
                 "updated_at": iso_now(),
-            }
+            },
         )
-        self._update_topic(
+        self._safe_repository_call(
+            "topic ASSET_REVIEW 상태 기록",
+            self._update_topic,
             channel,
             topic,
             {
@@ -132,14 +147,16 @@ class Stage2Pipeline:
                 "updated_at": iso_now(),
             },
         )
-        self.repository.append_assets(self._scene_asset_rows(topic["topic_id"], scenes))
+        self._safe_repository_call("장면 asset 기록", self.repository.append_assets, self._scene_asset_rows(topic["topic_id"], scenes))
         self._progress(f"[stage2] manifest 저장: {manifest_path}")
 
         missing_assets = [scene for scene in scenes if not scene.asset_url or scene.asset_source == "asset_required"]
         if missing_assets:
             missing_labels = ", ".join(scene.scene_id for scene in missing_assets)
             self._progress(f"[stage2] 렌더링 보류: 에셋이 필요한 장면 {len(missing_assets)}개 ({missing_labels})")
-            self.repository.append_review_tasks(
+            self._safe_repository_call(
+                "asset review task 기록",
+                self.repository.append_review_tasks,
                 [
                     {
                         "task_id": f"asset_review_{topic['topic_id']}",
@@ -154,7 +171,7 @@ class Stage2Pipeline:
                         "user_action": "",
                         "updated_at": iso_now(),
                     }
-                ]
+                ],
             )
             return "ASSET_REVIEW"
 
@@ -178,10 +195,12 @@ class Stage2Pipeline:
                 "created_at": iso_now(),
             }
         )
-        self.repository.append_assets(assets)
+        self._safe_repository_call("렌더 영상 asset 기록", self.repository.append_assets, assets)
         self._progress("[stage2] _SYSTEM_ASSETS 기록 완료")
 
-        self.repository.append_or_update_session(
+        self._safe_repository_call(
+            "검수 세션 렌더 버전 기록",
+            self.repository.append_or_update_session,
             {
                 "session_id": session_id,
                 "topic_id": topic["topic_id"],
@@ -190,9 +209,11 @@ class Stage2Pipeline:
                 "replacement_history_json": "[]",
                 "created_at": iso_now(),
                 "updated_at": iso_now(),
-            }
+            },
         )
-        self._update_topic(
+        self._safe_repository_call(
+            "topic 렌더 완료 상태 기록",
+            self._update_topic,
             channel,
             topic,
             {
@@ -205,7 +226,9 @@ class Stage2Pipeline:
                 "updated_at": iso_now(),
             },
         )
-        self.repository.append_review_tasks(
+        self._safe_repository_call(
+            "최종 승인 review task 기록",
+            self.repository.append_review_tasks,
             [
                 {
                     "task_id": f"approve_{topic['topic_id']}",
@@ -220,10 +243,18 @@ class Stage2Pipeline:
                     "user_action": "",
                     "updated_at": iso_now(),
                 }
-            ]
+            ],
         )
         self._progress(f"[stage2] 작업 완료: {topic['topic_id']} -> {video_url}")
         return "VIDEO_RENDERED"
+
+    def _safe_repository_call(self, label: str, func, *args, **kwargs) -> bool:
+        try:
+            func(*args, **kwargs)
+            return True
+        except Exception as exc:
+            self._progress(f"[stage2] 경고: {label} 실패, 로컬 산출물은 유지합니다: {exc}")
+            return False
 
     def _scene_asset_rows(self, topic_id: str, scenes) -> list[dict[str, str]]:
         return [

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 
 from app.google.repository import Channel
 from app.services.ai_client import get_ai_client
@@ -21,44 +22,64 @@ TOPIC_PATTERNS = [
 class TopicGenerator:
     """Generate real topic candidates with AI, with a deterministic local fallback."""
 
-    def generate(self, channel: Channel, week_key: str, count: int) -> list[dict[str, str]]:
-        ai_topics = self._generate_with_ai(channel, week_key, count)
+    def generate(self, channel: Channel, week_key: str, count: int, avoid_topics: list[str] | None = None) -> list[dict[str, str]]:
+        avoid_topics = self._unique_titles(avoid_topics or [])
+        ai_topics = self._generate_with_ai(channel, week_key, count, avoid_topics)
         if ai_topics:
             return ai_topics
-        return self._generate_fallback(channel, week_key, count)
+        return self._generate_fallback(channel, week_key, count, avoid_topics)
 
-    def _generate_with_ai(self, channel: Channel, week_key: str, count: int) -> list[dict[str, str]]:
+    def _generate_with_ai(self, channel: Channel, week_key: str, count: int, avoid_topics: list[str]) -> list[dict[str, str]]:
         prompt = render_prompt(
             "topic_candidates",
             channel_name=channel.channel_name,
             week_key=week_key,
             count=count,
+            avoid_topics_json=json.dumps(avoid_topics[:120], ensure_ascii=False, indent=2),
         )
         try:
             data = get_ai_client().generate_json(prompt, max_tokens=8192)
         except (json.JSONDecodeError, ValueError, KeyError):
             return []
         topics = []
-        for index, item in enumerate(data.get("topics", [])[:count]):
+        blocked_keys = {self._topic_key(title) for title in avoid_topics}
+        for item in data.get("topics", []):
+            title = str(item.get("topic_title", "")).strip()
+            if not title or self._is_duplicate_topic(title, blocked_keys):
+                continue
+            index = len(topics)
             seed = f"{channel.channel_id}:{week_key}:{index}:{item.get('topic_title', '')}"
             topics.append(
                 {
                     "topic_id": f"topic_{week_key}_{hashlib.sha1(seed.encode('utf-8')).hexdigest()[:8]}",
-                    "topic_title": str(item.get("topic_title", "")).strip(),
+                    "topic_title": title,
                     "topic_type": str(item.get("topic_type", "정보제공형")).strip(),
                     "planning_note": str(item.get("planning_note", "")).strip(),
                     "script_summary": str(item.get("script_summary", "")).strip(),
                 }
             )
+            blocked_keys.add(self._topic_key(title))
+            if len(topics) >= count:
+                break
+        if len(topics) < count:
+            existing_titles = [*avoid_topics, *(topic["topic_title"] for topic in topics)]
+            topics.extend(self._generate_fallback(channel, week_key, count - len(topics), existing_titles))
         return [topic for topic in topics if topic["topic_title"] and topic["planning_note"] and topic["script_summary"]]
 
-    def _generate_fallback(self, channel: Channel, week_key: str, count: int) -> list[dict[str, str]]:
+    def _generate_fallback(self, channel: Channel, week_key: str, count: int, avoid_topics: list[str] | None = None) -> list[dict[str, str]]:
         topics = []
-        for index in range(count):
+        blocked_keys = {self._topic_key(title) for title in (avoid_topics or [])}
+        index = 0
+        attempts = 0
+        while len(topics) < count and attempts < count + len(TOPIC_PATTERNS) * 2:
+            attempts += 1
             topic_type, pattern = TOPIC_PATTERNS[index % len(TOPIC_PATTERNS)]
             seed = f"{channel.channel_id}:{week_key}:{index}"
             short_hash = hashlib.sha1(seed.encode("utf-8")).hexdigest()[:8]
             title = pattern.format(channel=channel.channel_name, num=(index % 5) + 3)
+            index += 1
+            if self._is_duplicate_topic(title, blocked_keys):
+                continue
             planning_note = self._planning_note(channel.channel_name, topic_type)
             script_summary = self._script_summary(title)
             topics.append(
@@ -70,6 +91,7 @@ class TopicGenerator:
                     "script_summary": script_summary,
                 }
             )
+            blocked_keys.add(self._topic_key(title))
         return topics
 
     def enrich_existing_topic(self, channel_name: str, title: str, topic_type: str = "정보제공형") -> dict[str, str]:
@@ -128,3 +150,31 @@ class TopicGenerator:
             "흔히 헷갈리는 점은 무엇인지 정리한다. 마지막에는 오늘 바로 점검할 수 있는 행동 목록과 "
             "단정하지 않는 면책 문구로 마무리한다."
         )
+
+    @staticmethod
+    def _unique_titles(titles: list[str]) -> list[str]:
+        unique = []
+        seen = set()
+        for title in titles:
+            cleaned = " ".join((title or "").split()).strip()
+            key = TopicGenerator._topic_key(cleaned)
+            if cleaned and key and key not in seen:
+                unique.append(cleaned)
+                seen.add(key)
+        return unique
+
+    @staticmethod
+    def _is_duplicate_topic(title: str, blocked_keys: set[str]) -> bool:
+        return TopicGenerator._topic_key(title) in blocked_keys
+
+    @staticmethod
+    def _topic_key(title: str) -> str:
+        text = re.sub(r"['\"“”‘’!?！？.,，。:：()\[\]{}<>〈〉《》]", " ", title or "")
+        text = re.sub(r"\b\d+\b", " ", text)
+        text = re.sub(r"\s+", " ", text).strip().lower()
+        stopwords = {
+            "50대", "이후", "이상", "필수", "꼭", "챙겨야", "합니다", "놓치면", "후회할", "건강",
+            "시작", "위한", "좋은", "방법", "가지", "체크포인트", "확인", "오늘", "바로",
+        }
+        words = [word for word in text.split() if word not in stopwords and len(word) > 1]
+        return " ".join(words[:8])

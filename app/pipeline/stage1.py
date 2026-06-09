@@ -61,6 +61,7 @@ class Stage1Pipeline:
         target_week = week_key or next_week_key()
         job_id = f"job_stage1_{channel.channel_id}_{target_week}"
         self._progress(f"[stage1] 작업 준비: channel={channel.channel_name}, week={target_week}, job={job_id}")
+        avoid_topics = self._previous_channel_topic_titles(channel)
         if reset_outputs:
             self._progress(f"[stage1] test: {channel.channel_name} 기존 Stage1 산출물 초기화 시작")
             self._reset_channel_stage1_outputs(channel)
@@ -81,7 +82,7 @@ class Stage1Pipeline:
             return 0
         try:
             self._progress(f"[stage1] lock 획득: {job_id}")
-            generated = self._generate_for_channel_locked(channel, target_week, force=force)
+            generated = self._generate_for_channel_locked(channel, target_week, force=force, avoid_topics=avoid_topics)
             self.repository.complete_job(job_id, json.dumps({"generated_topics": generated}, ensure_ascii=False))
             self._progress(f"[stage1] job 완료: {job_id}, generated_topics={generated}")
             return generated
@@ -91,7 +92,13 @@ class Stage1Pipeline:
             self.repository.update_channel(channel, {"last_checked_at": iso_now(), "status": "FAILED", "error_message": str(exc)})
             raise
 
-    def _generate_for_channel_locked(self, channel: Channel, target_week: str, force: bool = False) -> int:
+    def _generate_for_channel_locked(
+        self,
+        channel: Channel,
+        target_week: str,
+        force: bool = False,
+        avoid_topics: list[str] | None = None,
+    ) -> int:
         if not force and channel.last_topic_generated_week == target_week:
             self._progress(f"[stage1] 건너뜀: {channel.channel_name} {target_week}는 이미 생성됨")
             return 0
@@ -108,7 +115,10 @@ class Stage1Pipeline:
             f"[stage1] 소주제 생성 시작: {channel.channel_name}, 업로드 요일 {len(upload_days)}개, "
             f"생성 개수 {count}개"
         )
-        topic_candidates = self.topic_generator.generate(channel, target_week, count)
+        avoid_topics = self._merge_unique_titles([*(avoid_topics or []), *(row.get("topic_title", "") for row in existing)])
+        if avoid_topics:
+            self._progress(f"[stage1] 중복 회피 기준 주제 {len(avoid_topics)}개 적용")
+        topic_candidates = self.topic_generator.generate(channel, target_week, count, avoid_topics=avoid_topics)
         self._progress(f"[stage1] 소주제 후보 생성 완료: {len(topic_candidates)}개")
         now = iso_now()
         rows = []
@@ -170,6 +180,26 @@ class Stage1Pipeline:
         )
         self._progress(f"[stage1] 기록 완료: {channel.channel_name} {target_week}")
         return len(rows)
+
+    def _previous_channel_topic_titles(self, channel: Channel) -> list[str]:
+        titles = [row.get("topic_title", "") for row in self.repository.list_channel_topics(channel.sheet_name)]
+        for upload in self.repository.client.read_records("업로드현황"):
+            normalized = self.repository._normalize_record(upload)
+            if normalized.get("channel_id") == channel.channel_id:
+                titles.append(normalized.get("title", ""))
+        return self._merge_unique_titles(titles)
+
+    @staticmethod
+    def _merge_unique_titles(titles) -> list[str]:
+        unique = []
+        seen = set()
+        for title in titles:
+            cleaned = " ".join((title or "").split()).strip()
+            key = cleaned.lower()
+            if cleaned and key not in seen:
+                unique.append(cleaned)
+                seen.add(key)
+        return unique
 
     def _reset_stage1_job(self, job_id: str) -> None:
         jobs = self.repository.client.read_records("_SYSTEM_JOBS")

@@ -70,6 +70,7 @@ pip install -r requirements.txt
 - `MEDIA_SOURCE_MODE`: `auto`, `ai_image`, `crawl_image`, `crawl_video`
 - `MEDIA_CRAWL_PROVIDER`: 기본 `wikimedia`
 - `MEDIA_CRAWL_ALLOWED_LICENSES`: 허용 라이선스 목록
+- `GOOGLE_IMAGE_SEARCH_API_KEY`, `GOOGLE_IMAGE_SEARCH_CX`, `UNSPLASH_ACCESS_KEY`, `PEXELS_API_KEY`, `PIXABAY_API_KEY`: 있으면 추가 이미지 소스로 사용하며, 비어 있으면 자동으로 건너뜁니다.
 
 암호화 키 생성:
 
@@ -210,6 +211,11 @@ npm run dev
 MEDIA_SOURCE_MODE=auto
 MEDIA_CRAWL_PROVIDER=wikimedia
 MEDIA_CRAWL_ALLOWED_LICENSES=cc0,public domain,cc-by,cc-by-sa
+GOOGLE_IMAGE_SEARCH_API_KEY=
+GOOGLE_IMAGE_SEARCH_CX=
+UNSPLASH_ACCESS_KEY=
+PEXELS_API_KEY=
+PIXABAY_API_KEY=
 ```
 
 동작 방식:

@@ -1,0 +1,571 @@
+{
+  "images": {
+    "3f39da896f84afa251cb7ae5f3042d1a5721c1b1d2eb42d295174c0ab21a7c8a": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_001_video_fallback.mp4",
+      "source": "local_generated_video",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_001",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_001",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "3ec29f055ab1385a850da2d1affbebd304ccda7b8ec5f15f7bf3ad410b7dae52": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_002_video_fallback.mp4",
+      "source": "local_generated_video",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_002",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_002",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "0c27293e56e0f6b2e7ac38958b6021d6d7517d3a165bc483be8bbdcb04e2ec4d": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_003_crawl_070e879572.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_003",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_003",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "d3a979ae847f66dd31e425e3d60acd8c9ab15558d1d68153e09fa7a464c3cb49": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_004_crawl_aa343864e3.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_004",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_004",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "9613685d590e73932157a940726ba9b3e62a235795e25d53331fbb2bf4efdc31": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_005_crawl_73a971a458.jpg",
+      "source": "unsplash",
+      "used_count": 1,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-06T16:36:55",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_005",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "1002cbd13d358236aa0e3bb6e0b623496699f89b46b42a610e35502ebfb3750d": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_006_crawl_6ca4d5009d.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_006",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_006",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "183750b1c5dcec3bb041a042cb78dc0f00b6dfbb3f5e52fead96a8fd358d966d": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_007_crawl_2a17ca04a0.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_007",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_007",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "2f38f3675816996e1c37222e4ae510a4ac7c460c05dce64fdf5454eb8fdea337": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_008_crawl_30a8b9d379.jpg",
+      "source": "unsplash",
+      "used_count": 1,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-06T16:36:55",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_008",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "6d3e44d8e045ee0626e5811a5ec1ee82d6d681a6ff8e696035a7392bfab59183": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_009_crawl_1318d600cf.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_009",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_009",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "90a99a66b8725f7a63a76812becdb2c3fccbb58cbbe3e900df4fa75577c6a2d6": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_010_crawl_e334f496b3.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_010",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_010",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "debdd30d1768c8f6047e2114567097f0fb70085dee6160838d2c61702cfff4ca": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_011_crawl_ed616a3a96.jpg",
+      "source": "unsplash",
+      "used_count": 1,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-06T16:36:55",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_011",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "26857f00b1d7e95370ea66f70e5010be349de1ebaab0e4b25028316849d09593": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_012_crawl_d8497fdb45.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_012",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_012",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "2f1c0af369bca08741d29f0c5251326600b6d8a0d1ce75c2158a69a01484fd1d": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_013_crawl_e0ddc87178.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_013",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_013",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "c411df167a46a118621b9f65e556d3cb6de01b040ab9230420c9f1073b1ba8b0": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_014_crawl_a2914d4ac8.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_014",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_014",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "16cc15bc98e081f95dba4b64403259728488cbb68d352581ab4aa87c16269d85": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_015_crawl_2719876c7b.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_015",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_015",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "fe2595361f91750a8f0c6fa5ab60ed5b95009d7b2aa67a676774479ac223d55d": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_016_crawl_36b82baeb3.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_016",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_016",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "b0badcf850acc3a4b4eaadcefb4dc2c2076ea86bc2dbb38ca60d940cbc71ca20": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_017_crawl_0da5f75299.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_017",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_017",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "7142448629817f1fe57efc0f0ef65dd59eab4e4c7d2f0f3ccc2789766deabe8d": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_018_crawl_9afdfe937b.jpg",
+      "source": "unsplash",
+      "used_count": 1,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-06T16:36:55",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_018",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "e8873f8ed5e7addcad8e2e3f5ec76787a7fcf91181cfb09d936ce00771ed3bb6": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_019_crawl_6c246ceb0f.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_019",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_019",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "98ece8e200456c50da6e2ccc1ef3a157b5289db9febefa64bc24031e01116e58": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_020_crawl_b41b67d156.jpg",
+      "source": "unsplash",
+      "used_count": 1,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-06T16:36:55",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_020",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "076fbc8c86aed5d2396ab28d4da98486188ba43020506a47dc5c45cc398c734b": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_021_crawl_a0d610426f.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_021",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_021",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "820b852a1e9eecd26a54027e8fc36ea43f0f9f30eba9b695949a54cd8c3784c0": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_022_crawl_308a8994a7.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_022",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_022",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "36a4916869f5e2f5eb6c03089cedaa90d2e7e016474a6a771871db5b5cc13007": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_023_crawl_7387cdb454.jpg",
+      "source": "unsplash",
+      "used_count": 1,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-06T16:36:55",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_023",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "87b6a9b9e7ff070515e6a5f2dccda0f3a7d0de61f5dabfedd31ee07debb1d98c": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_024_crawl_1941490bad.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_024",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_024",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "7d1bcf37c912aa43f9c74ad285fa70accf8f25e7e83dd4418241924102a2bf9d": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_025_crawl_1997d19f4d.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_025",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_025",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "cca4b8ba6148e8b977f54d9c15c21040d674f0b375bcf39dab51cb3b6d70e638": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_026_crawl_b6282a5c60.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_026",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_026",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "dfb2e9207dd6b54eeb8d6bde79d21f5c01604d9fcd5db4f6f9740487acac079d": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_027_crawl_fdcea7bbad.jpg",
+      "source": "openverse:flickr",
+      "used_count": 2,
+      "first_used_at": "2026-06-06T16:36:55",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_027",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        },
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_027",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "b005982c8fa872820b78121cbcdf5f1b99e61d76cf32107af89c32dca557528d": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_005_crawl_e42edce6a7.jpg",
+      "source": "unsplash",
+      "used_count": 1,
+      "first_used_at": "2026-06-09T15:32:24",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_005",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "ff896ff860f60b3dc34271231c47c0a72bd80d205dab35b75c8abcb1b1082fdf": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_008_crawl_2a5b0ce087.jpg",
+      "source": "unsplash",
+      "used_count": 1,
+      "first_used_at": "2026-06-09T15:32:24",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_008",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "f6c34250b07aa9bf2f8341c9a46fcdd53daefc91bd952be0223f5c039a6898d9": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_011_crawl_e5798ef28a.jpg",
+      "source": "unsplash",
+      "used_count": 1,
+      "first_used_at": "2026-06-09T15:32:24",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_011",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "240867bfae7f3ed81c67248c67e8f659bf227898a7678d5d0dcd5c5aec4429b6": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_018_crawl_238f8ecf29.jpg",
+      "source": "unsplash",
+      "used_count": 1,
+      "first_used_at": "2026-06-09T15:32:24",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_018",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "faf4ae1bb3815ce8e85eae146db410afc47fa20c33c793afde30b3de7a6f1b05": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_020_crawl_5366d465c9.jpg",
+      "source": "unsplash",
+      "used_count": 1,
+      "first_used_at": "2026-06-09T15:32:24",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_020",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    },
+    "a5b2560c602119faa6413c6d24772a0bbecb660b68c153e2993fe1d463e5a06f": {
+      "url": "http://localhost:8000/files/topics/topic_2026-W24_cf960c6f/assets/scene_023_crawl_925dedcd4c.jpg",
+      "source": "unsplash",
+      "used_count": 1,
+      "first_used_at": "2026-06-09T15:32:24",
+      "last_used_at": "2026-06-09T15:32:24",
+      "used_in": [
+        {
+          "video_id": "topic_2026-W24_cf960c6f",
+          "scene_id": "scene_023",
+          "topic": "뇌 건강을 위협하는 의외의 음식 3가지! 현명하게 섭취하는 법은?"
+        }
+      ]
+    }
+  }
+}
