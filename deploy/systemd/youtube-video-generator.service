@@ -1,0 +1,17 @@
+[Unit]
+Description=YouTube Video Generator FastAPI
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/YouTube-Video-Generator
+Environment=PATH=/home/ubuntu/YouTube-Video-Generator/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/home/ubuntu/YouTube-Video-Generator/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

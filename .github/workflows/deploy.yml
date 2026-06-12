@@ -1,0 +1,71 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: ec2-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+      EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+      APP_DIR: ${{ vars.EC2_APP_DIR || '/home/ubuntu/YouTube-Video-Generator' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate deployment secrets
+        shell: bash
+        run: |
+          test -n "$EC2_HOST" || (echo "Missing secret: EC2_HOST" && exit 1)
+          test -n "$EC2_SSH_KEY" || (echo "Missing secret: EC2_SSH_KEY" && exit 1)
+          echo "EC2_USER=${EC2_USER:-ubuntu}" >> "$GITHUB_ENV"
+
+      - name: Install deployment tools
+        run: sudo apt-get update && sudo apt-get install -y rsync
+
+      - name: Configure SSH
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Sync application files
+        shell: bash
+        run: |
+          rsync -az --delete \
+            --exclude '.git/' \
+            --exclude '.env' \
+            --exclude '.venv/' \
+            --exclude '__pycache__/' \
+            --exclude '*.pyc' \
+            --exclude '.pytest_cache/' \
+            --exclude 'encrypted_tokens/' \
+            --exclude 'storage/' \
+            --exclude 'service-account.json' \
+            --exclude 'client_secret.json' \
+            --exclude 'frontend/node_modules/' \
+            --exclude 'frontend/dist/' \
+            --exclude '.DS_Store' \
+            -e "ssh -i ~/.ssh/ec2_key" \
+            ./ "$EC2_USER@$EC2_HOST:$APP_DIR/"
+
+      - name: Install dependencies and restart app
+        shell: bash
+        run: |
+          ssh -i ~/.ssh/ec2_key "$EC2_USER@$EC2_HOST" \
+            "cd '$APP_DIR' && chmod +x scripts/deploy_ec2.sh && INSTALL_SYSTEMD=1 ./scripts/deploy_ec2.sh"
