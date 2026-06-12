@@ -18,14 +18,16 @@ class Stage5PublishAndSmsPipeline:
         self.uploader = YouTubeUploader()
         self.sms = sms_provider or MockSmsProvider()
 
-    def run_once(self) -> dict[str, int]:
-        stats = {"published": 0, "sms_sent": 0}
-        stats["published"] = self._publish_due_videos()
-        stats["sms_sent"] = self._send_selection_reminders()
+    def run_once(self, force: bool = False, test: bool = False) -> dict[str, int]:
+        stats = {"published": 0, "would_publish": 0, "sms_sent": 0, "would_send_sms": 0}
+        publish_stats = self._publish_due_videos(force=force, test=test)
+        sms_stats = self._send_selection_reminders(force=force, test=test)
+        stats.update(publish_stats)
+        stats.update(sms_stats)
         return stats
 
-    def _publish_due_videos(self) -> int:
-        count = 0
+    def _publish_due_videos(self, force: bool = False, test: bool = False) -> dict[str, int]:
+        stats = {"published": 0, "would_publish": 0}
         now = datetime.now(UTC)
         for channel in self.repository.list_enabled_channels():
             if not self.tokens.has_token(channel.channel_id):
@@ -34,19 +36,22 @@ class Stage5PublishAndSmsPipeline:
                 if topic.get("status") not in {"UPLOADED_PRIVATE", "SCHEDULED"}:
                     continue
                 publish_at = parse_iso(topic.get("upload_datetime"))
-                if not publish_at or publish_at > now:
+                if not force and (not publish_at or publish_at > now):
+                    continue
+                if test:
+                    stats["would_publish"] += 1
                     continue
                 result = self.uploader.publish(channel.channel_id, topic["youtube_video_id"])
                 topic.update({"status": "PUBLISHED", "youtube_public_url": result["youtube_public_url"], "updated_at": iso_now()})
                 self.repository.update_channel_topic(channel.sheet_name, int(topic["_row_number"]), topic)
-                count += 1
-        return count
+                stats["published"] += 1
+        return stats
 
-    def _send_selection_reminders(self) -> int:
-        count = 0
+    def _send_selection_reminders(self, force: bool = False, test: bool = False) -> dict[str, int]:
+        stats = {"sms_sent": 0, "would_send_sms": 0}
         today = datetime.now(UTC).weekday()
-        if today not in {0, 1}:
-            return 0
+        if not force and today not in {0, 1}:
+            return stats
         for channel in self.repository.list_enabled_channels():
             if not channel.raw.get("alert_phone_number"):
                 continue
@@ -56,6 +61,9 @@ class Stage5PublishAndSmsPipeline:
                 if topic.get("status") == "WAITING_USER_SELECTION" and topic.get("selected") != "TRUE"
             ]
             if not waiting:
+                continue
+            if test:
+                stats["would_send_sms"] += 1
                 continue
             job_id = f"sms_selection_{channel.channel_id}_{datetime.now(UTC).date().isoformat()}"
             locked = self.repository.acquire_job_lock(
@@ -70,5 +78,5 @@ class Stage5PublishAndSmsPipeline:
                 continue
             self.sms.send(channel.raw["alert_phone_number"], f"{channel.channel_name} 채널의 소주제 선택이 필요합니다.")
             self.repository.complete_job(job_id)
-            count += 1
-        return count
+            stats["sms_sent"] += 1
+        return stats

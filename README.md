@@ -284,11 +284,35 @@ GET /admin/youtube/oauth/start/{channel_id}
 POST /admin/pipeline/stage4/upload/run
 ```
 
+업로드 전 점검만 하려면 실제 YouTube 업로드와 Sheets 변경 없이 test 모드로 실행합니다.
+
+```text
+POST /admin/pipeline/stage4/upload/run?test=true
+```
+
+완료된 업로드 job을 다시 열거나 실패/업로드중 항목을 재시도하려면 force 모드를 사용합니다.
+
+```text
+POST /admin/pipeline/stage4/upload/run?force=true
+```
+
 ## 5단계 skeleton
 
 - `UPLOADED_PRIVATE` 또는 `SCHEDULED` 상태 영상의 `upload_datetime`이 지나면 공개 전환을 시도합니다.
 - 월요일/화요일에 소주제 선택이 없으면 SMS provider를 통해 알림을 보냅니다.
 - 중복 SMS 방지는 `_SYSTEM_JOBS`의 24시간 락으로 처리합니다.
+
+공개 전환과 SMS 발송 대상만 확인하려면 test 모드를 사용합니다.
+
+```text
+POST /admin/pipeline/stage5/run?test=true
+```
+
+예약시간과 SMS 요일 제한을 무시하고 즉시 실행하려면 force 모드를 사용합니다.
+
+```text
+POST /admin/pipeline/stage5/run?force=true
+```
 
 ## 보안 원칙
 

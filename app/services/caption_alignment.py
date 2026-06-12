@@ -50,11 +50,13 @@ class CaptionAlignmentService:
             text_path = temp_path / "captions.txt"
             output_path = temp_path / "syncmap.json"
             text_path.write_text(self._aeneas_parsed_text(chunks), encoding="utf-8")
-            config = (
+            base_config = (
                 f"task_language={self.settings.aeneas_language}"
                 "|is_text_type=parsed"
                 "|os_task_file_format=json"
             )
+            extra = (self.settings.aeneas_task_extra_config or "").strip()
+            config = f"{base_config}|{extra}" if extra else base_config
             try:
                 command = [
                     python_path,

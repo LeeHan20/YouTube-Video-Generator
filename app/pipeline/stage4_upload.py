@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from urllib.parse import urlparse
 
+from app.core.constants import JOB_COLUMNS
 from app.core.config import get_settings
 from app.core.time import iso_now
 from app.google.repository import Channel, SheetsRepository
@@ -18,22 +19,31 @@ class Stage4UploadPipeline:
         self.tokens = EncryptedTokenStore()
         self.uploader = YouTubeUploader()
 
-    def run_once(self) -> dict[str, int]:
-        stats = {"approved_topics": 0, "uploaded": 0, "skipped": 0}
+    def run_once(self, force: bool = False, test: bool = False) -> dict[str, int]:
+        stats = {"approved_topics": 0, "uploaded": 0, "would_upload": 0, "skipped": 0}
+        eligible_statuses = {"APPROVED", "FINAL_APPROVED", "VIDEO_RENDERED"}
+        if force:
+            eligible_statuses.update({"UPLOADING_PRIVATE", "FAILED"})
         for channel in self.repository.list_enabled_channels():
             for topic in self.repository.list_channel_topics(channel.sheet_name):
-                if topic.get("status") not in {"APPROVED", "FINAL_APPROVED", "VIDEO_RENDERED"}:
+                if topic.get("status") not in eligible_statuses:
                     continue
                 stats["approved_topics"] += 1
                 if not self.tokens.has_token(channel.channel_id):
                     stats["skipped"] += 1
                     continue
-                if self.upload_topic(channel, topic):
+                if test:
+                    self._validate_upload_topic(topic)
+                    stats["would_upload"] += 1
+                    continue
+                if self.upload_topic(channel, topic, force=force):
                     stats["uploaded"] += 1
         return stats
 
-    def upload_topic(self, channel: Channel, topic: dict[str, str]) -> bool:
+    def upload_topic(self, channel: Channel, topic: dict[str, str], force: bool = False) -> bool:
         job_id = f"job_stage4_upload_{topic['topic_id']}"
+        if force:
+            self._reset_stage4_job(job_id)
         locked = self.repository.acquire_job_lock(
             job_id=job_id,
             job_type="UPLOAD_YOUTUBE_PRIVATE",
@@ -82,6 +92,30 @@ class Stage4UploadPipeline:
             self.repository.update_channel_topic(channel.sheet_name, int(topic["_row_number"]), topic)
             self.repository.fail_job(job_id, str(exc))
             raise
+
+    def _validate_upload_topic(self, topic: dict[str, str]) -> Path:
+        video_path = self._local_path_from_url(topic.get("rendered_video_url", ""))
+        if not video_path.exists():
+            raise FileNotFoundError(f"업로드할 영상 파일이 없습니다: {video_path}")
+        return video_path
+
+    def _reset_stage4_job(self, job_id: str) -> None:
+        jobs = self.repository.client.read_records("_SYSTEM_JOBS")
+        job = next((row for row in jobs if row.get("job_id") == job_id), None)
+        if not job:
+            return
+        row_number = int(job.pop("_row_number"))
+        job.update(
+            {
+                "status": "PENDING",
+                "locked_by": "",
+                "locked_until": "",
+                "output_json": "",
+                "error_message": "",
+                "updated_at": iso_now(),
+            }
+        )
+        self.repository.client.update_row("_SYSTEM_JOBS", row_number, JOB_COLUMNS, job)
 
     def _local_path_from_url(self, url: str) -> Path:
         parsed = urlparse(url)

@@ -76,15 +76,19 @@ def youtube_oauth_callback(
 
 @router.post("/admin/pipeline/stage4/upload/run")
 def run_stage4_upload(
+    force: bool = False,
+    test: bool = False,
     _: str = Depends(require_admin),
     repo: SheetsRepository = Depends(repository),
 ) -> dict[str, int]:
-    return Stage4UploadPipeline(repo).run_once()
+    return Stage4UploadPipeline(repo).run_once(force=force, test=test)
 
 
 @router.post("/admin/pipeline/stage5/run")
 def run_stage5(
+    force: bool = False,
+    test: bool = False,
     _: str = Depends(require_admin),
     repo: SheetsRepository = Depends(repository),
 ) -> dict[str, int]:
-    return Stage5PublishAndSmsPipeline(repo).run_once()
+    return Stage5PublishAndSmsPipeline(repo).run_once(force=force, test=test)

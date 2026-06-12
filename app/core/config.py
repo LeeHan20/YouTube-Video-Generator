@@ -58,6 +58,12 @@ class Settings(BaseSettings):
     aeneas_repo_path: str = "./aeneas"
     aeneas_language: str = "kor"
     aeneas_runtime_config: str = "tts=macos"
+    aeneas_task_extra_config: str = (
+        "task_adjust_boundary_algorithm=rateaggressive"
+        "|task_adjust_boundary_rate_value=14.0"
+        "|is_audio_file_detect_head_max=0.500"
+        "|is_audio_file_detect_tail_max=0.500"
+    )
     aeneas_timeout_seconds: int = 60
     video_clip_provider: str = "placeholder"
     media_source_mode: str = "crawl_image"
