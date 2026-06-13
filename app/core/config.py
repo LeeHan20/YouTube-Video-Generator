@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     scheduler_interval_seconds: int = 300
     server_instance_id: str = "local-dev"
     sms_provider: str = "mock"
+    naver_sens_access_key: str = ""
+    naver_sens_secret_key: str = ""
+    naver_sens_service_id: str = ""
+    naver_sens_from_number: str = ""
+    naver_sens_timeout_seconds: int = 10
 
     ai_provider: str = "gemini"
     gemini_api_key: str = ""
@@ -86,6 +91,7 @@ class Settings(BaseSettings):
         "app_port",
         "google_api_timeout_seconds",
         "scheduler_interval_seconds",
+        "naver_sens_timeout_seconds",
         "gemini_tts_timeout_seconds",
         "supertone_timeout_seconds",
         "aeneas_timeout_seconds",

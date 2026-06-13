@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from app.core.config import get_settings
 from app.core.time import iso_now, parse_iso
 from app.google.repository import SheetsRepository
-from app.sms.provider import MockSmsProvider, SmsProvider
+from app.sms.provider import SmsProvider, sms_provider_from_settings
 from app.youtube.oauth import EncryptedTokenStore
 from app.youtube.uploader import YouTubeUploader
 
@@ -16,7 +16,7 @@ class Stage5PublishAndSmsPipeline:
         self.settings = get_settings()
         self.tokens = EncryptedTokenStore()
         self.uploader = YouTubeUploader()
-        self.sms = sms_provider or MockSmsProvider()
+        self.sms = sms_provider or sms_provider_from_settings()
 
     def run_once(self, force: bool = False, test: bool = False) -> dict[str, int]:
         stats = {"published": 0, "would_publish": 0, "sms_sent": 0, "would_send_sms": 0}
@@ -76,7 +76,10 @@ class Stage5PublishAndSmsPipeline:
             )
             if not locked:
                 continue
-            self.sms.send(channel.raw["alert_phone_number"], f"{channel.channel_name} 채널의 소주제 선택이 필요합니다.")
+            result = self.sms.send(channel.raw["alert_phone_number"], f"{channel.channel_name} 채널의 소주제 선택이 필요합니다.")
+            if not result.success:
+                self.repository.fail_job(job_id, result.error_message or "SMS send failed")
+                continue
             self.repository.complete_job(job_id)
             stats["sms_sent"] += 1
         return stats
