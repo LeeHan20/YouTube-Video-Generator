@@ -86,6 +86,8 @@ class NaverSensSmsProvider(SmsProvider):
         digits = "".join(ch for ch in value if ch.isdigit())
         if digits.startswith("82") and len(digits) > 10:
             return "0" + digits[2:]
+        if len(digits) == 10 and digits.startswith("10"):
+            return "0" + digits
         return digits
 
 
