@@ -46,11 +46,17 @@ class NaverSensSmsProvider(SmsProvider):
             raise ValueError(f"Missing Naver SENS SMS settings: {', '.join(missing)}")
 
     def send(self, phone_number: str, message: str) -> SmsResult:
+        message_bytes = len(message.encode("utf-8"))
+        if message_bytes > self.settings.sms_max_bytes:
+            return SmsResult(
+                success=False,
+                error_message=f"SMS message is {message_bytes} bytes; max is {self.settings.sms_max_bytes} bytes",
+            )
         timestamp = str(int(time() * 1000))
         path = f"/sms/v2/services/{self.settings.naver_sens_service_id}/messages"
         url = f"https://sens.apigw.ntruss.com{path}"
         body = {
-            "type": "SMS" if len(message.encode("utf-8")) <= 90 else "LMS",
+            "type": "SMS",
             "contentType": "COMM",
             "countryCode": "82",
             "from": self._digits(self.settings.naver_sens_from_number),

@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     scheduler_interval_seconds: int = 300
     server_instance_id: str = "local-dev"
     sms_provider: str = "mock"
+    sms_format_path: Path = Path("./sys_prompts/sms_format.md")
+    sms_max_bytes: int = 90
     naver_sens_access_key: str = ""
     naver_sens_secret_key: str = ""
     naver_sens_service_id: str = ""
@@ -91,6 +93,7 @@ class Settings(BaseSettings):
         "app_port",
         "google_api_timeout_seconds",
         "scheduler_interval_seconds",
+        "sms_max_bytes",
         "naver_sens_timeout_seconds",
         "gemini_tts_timeout_seconds",
         "supertone_timeout_seconds",

@@ -62,6 +62,7 @@ class Stage5PublishAndSmsPipeline:
             ]
             if not waiting:
                 continue
+            message = self._selection_reminder_message(channel.channel_name, len(waiting))
             if test:
                 stats["would_send_sms"] += 1
                 continue
@@ -76,10 +77,28 @@ class Stage5PublishAndSmsPipeline:
             )
             if not locked:
                 continue
-            result = self.sms.send(channel.raw["alert_phone_number"], f"{channel.channel_name} 채널의 소주제 선택이 필요합니다.")
+            result = self.sms.send(channel.raw["alert_phone_number"], message)
             if not result.success:
                 self.repository.fail_job(job_id, result.error_message or "SMS send failed")
                 continue
             self.repository.complete_job(job_id)
             stats["sms_sent"] += 1
         return stats
+
+    def _selection_reminder_message(self, channel_name: str, waiting_count: int) -> str:
+        template = self._sms_template()
+        message = template.format(
+            channel_name=channel_name,
+            waiting_count=waiting_count,
+            public_base_url=self.settings.public_base_url,
+        ).strip()
+        message_bytes = len(message.encode("utf-8"))
+        if message_bytes > self.settings.sms_max_bytes:
+            raise ValueError(f"SMS template rendered to {message_bytes} bytes; max is {self.settings.sms_max_bytes} bytes")
+        return message
+
+    def _sms_template(self) -> str:
+        path = self.settings.sms_format_path
+        if path.exists():
+            return path.read_text(encoding="utf-8").strip()
+        return "[{channel_name}] 선택 필요 {waiting_count}건"
