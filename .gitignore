@@ -9,3 +9,4 @@ service-account.json
 client_secret.json
 frontend/node_modules/
 frontend/dist/
+.DS_Store

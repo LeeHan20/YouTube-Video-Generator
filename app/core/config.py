@@ -28,6 +28,7 @@ class Settings(BaseSettings):
 
     scheduler_interval_seconds: int = 300
     server_instance_id: str = "local-dev"
+    video_source_retention_days: int = 14
     sms_provider: str = "mock"
     sms_format_path: Path = Path("./sys_prompts/sms_format.md")
     sms_max_bytes: int = 90
@@ -93,6 +94,7 @@ class Settings(BaseSettings):
         "app_port",
         "google_api_timeout_seconds",
         "scheduler_interval_seconds",
+        "video_source_retention_days",
         "sms_max_bytes",
         "naver_sens_timeout_seconds",
         "gemini_tts_timeout_seconds",

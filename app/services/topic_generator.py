@@ -43,9 +43,10 @@ class TopicGenerator:
             return []
         topics = []
         blocked_keys = {self._topic_key(title) for title in avoid_topics}
+        blocked_fingerprints = [self._topic_fingerprint(title) for title in avoid_topics]
         for item in data.get("topics", []):
             title = str(item.get("topic_title", "")).strip()
-            if not title or self._is_duplicate_topic(title, blocked_keys):
+            if not title or self._is_duplicate_topic(title, blocked_keys, blocked_fingerprints):
                 continue
             index = len(topics)
             seed = f"{channel.channel_id}:{week_key}:{index}:{item.get('topic_title', '')}"
@@ -59,6 +60,7 @@ class TopicGenerator:
                 }
             )
             blocked_keys.add(self._topic_key(title))
+            blocked_fingerprints.append(self._topic_fingerprint(title))
             if len(topics) >= count:
                 break
         if len(topics) < count:
@@ -69,6 +71,7 @@ class TopicGenerator:
     def _generate_fallback(self, channel: Channel, week_key: str, count: int, avoid_topics: list[str] | None = None) -> list[dict[str, str]]:
         topics = []
         blocked_keys = {self._topic_key(title) for title in (avoid_topics or [])}
+        blocked_fingerprints = [self._topic_fingerprint(title) for title in (avoid_topics or [])]
         index = 0
         attempts = 0
         while len(topics) < count and attempts < count + len(TOPIC_PATTERNS) * 2:
@@ -78,7 +81,7 @@ class TopicGenerator:
             short_hash = hashlib.sha1(seed.encode("utf-8")).hexdigest()[:8]
             title = pattern.format(channel=channel.channel_name, num=(index % 5) + 3)
             index += 1
-            if self._is_duplicate_topic(title, blocked_keys):
+            if self._is_duplicate_topic(title, blocked_keys, blocked_fingerprints):
                 continue
             planning_note = self._planning_note(channel.channel_name, topic_type)
             script_summary = self._script_summary(title)
@@ -92,6 +95,7 @@ class TopicGenerator:
                 }
             )
             blocked_keys.add(self._topic_key(title))
+            blocked_fingerprints.append(self._topic_fingerprint(title))
         return topics
 
     def enrich_existing_topic(self, channel_name: str, title: str, topic_type: str = "정보제공형") -> dict[str, str]:
@@ -164,8 +168,17 @@ class TopicGenerator:
         return unique
 
     @staticmethod
-    def _is_duplicate_topic(title: str, blocked_keys: set[str]) -> bool:
-        return TopicGenerator._topic_key(title) in blocked_keys
+    def _is_duplicate_topic(title: str, blocked_keys: set[str], blocked_fingerprints: list[frozenset[str]] | None = None) -> bool:
+        key = TopicGenerator._topic_key(title)
+        if key in blocked_keys:
+            return True
+        fingerprint = TopicGenerator._topic_fingerprint(title)
+        if not fingerprint:
+            return False
+        for blocked in blocked_fingerprints or []:
+            if TopicGenerator._fingerprints_overlap(fingerprint, blocked):
+                return True
+        return False
 
     @staticmethod
     def _topic_key(title: str) -> str:
@@ -178,3 +191,43 @@ class TopicGenerator:
         }
         words = [word for word in text.split() if word not in stopwords and len(word) > 1]
         return " ".join(words[:8])
+
+    @staticmethod
+    def _topic_fingerprint(title: str) -> frozenset[str]:
+        text = re.sub(r"['\"“”‘’!?！？.,，。:：()\[\]{}<>〈〉《》]", " ", title or "")
+        text = re.sub(r"\b\d+\b", " ", text)
+        text = re.sub(r"\s+", " ", text).strip().lower()
+        stopwords = {
+            "50대", "이후", "이상", "필수", "꼭", "챙겨야", "합니다", "놓치면", "후회할", "건강",
+            "시작", "위한", "좋은", "방법", "가지", "체크포인트", "확인", "오늘", "바로", "많은",
+            "분들이", "의외의", "알고", "나면", "쉽게", "정리", "생활", "기준", "영상", "소주제",
+            "되는", "도움", "이것", "확인하세요", "관리",
+        }
+        tokens = []
+        for word in text.split():
+            token = TopicGenerator._normalize_topic_token(word)
+            if token and token not in stopwords and len(token) > 1:
+                tokens.append(token)
+        return frozenset(tokens)
+
+    @staticmethod
+    def _normalize_topic_token(token: str) -> str:
+        token = re.sub(r"[^0-9a-zA-Z가-힣]", "", token)
+        token = re.sub(r"^\d+(가지|개|번|회)$", "", token)
+        for suffix in ("으로부터", "에게서", "에서는", "으로", "에서", "에게", "까지", "부터", "보다", "처럼", "만은", "만큼", "하고", "해야", "하는", "되면", "되기", "관리", "섭취", "예방", "증상", "문제", "상황", "음식", "신호", "이유"):
+            if token.endswith(suffix) and len(token) > len(suffix) + 1:
+                token = token[: -len(suffix)]
+                break
+        for suffix in ("은", "는", "이", "가", "을", "를", "에", "의", "와", "과", "도", "만"):
+            if token.endswith(suffix) and len(token) > 2:
+                token = token[: -len(suffix)]
+                break
+        return token
+
+    @staticmethod
+    def _fingerprints_overlap(left: frozenset[str], right: frozenset[str]) -> bool:
+        if not left or not right:
+            return False
+        shared = left & right
+        shorter = min(len(left), len(right))
+        return len(shared) >= 2 and len(shared) / max(1, shorter) >= 0.6

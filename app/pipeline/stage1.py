@@ -119,6 +119,7 @@ class Stage1Pipeline:
         if avoid_topics:
             self._progress(f"[stage1] 중복 회피 기준 주제 {len(avoid_topics)}개 적용")
         topic_candidates = self.topic_generator.generate(channel, target_week, count, avoid_topics=avoid_topics)
+        topic_candidates = self._dedupe_topic_candidates(topic_candidates, avoid_topics)
         self._progress(f"[stage1] 소주제 후보 생성 완료: {len(topic_candidates)}개")
         now = iso_now()
         rows = []
@@ -200,6 +201,20 @@ class Stage1Pipeline:
                 unique.append(cleaned)
                 seen.add(key)
         return unique
+
+    @staticmethod
+    def _dedupe_topic_candidates(candidates: list[dict[str, str]], avoid_topics: list[str] | None = None) -> list[dict[str, str]]:
+        deduped = []
+        blocked_keys = {TopicGenerator._topic_key(title) for title in (avoid_topics or [])}
+        blocked_fingerprints = [TopicGenerator._topic_fingerprint(title) for title in (avoid_topics or [])]
+        for candidate in candidates:
+            title = candidate.get("topic_title", "")
+            if not title or TopicGenerator._is_duplicate_topic(title, blocked_keys, blocked_fingerprints):
+                continue
+            deduped.append(candidate)
+            blocked_keys.add(TopicGenerator._topic_key(title))
+            blocked_fingerprints.append(TopicGenerator._topic_fingerprint(title))
+        return deduped
 
     def _reset_stage1_job(self, job_id: str) -> None:
         jobs = self.repository.client.read_records("_SYSTEM_JOBS")
