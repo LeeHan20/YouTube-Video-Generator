@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.api.auth import require_admin
 from app.core.time import iso_now
@@ -11,6 +11,7 @@ from app.pipeline.stage1 import Stage1Pipeline
 from app.pipeline.stage2 import Stage2Pipeline
 from app.pipeline.stage4_upload import Stage4UploadPipeline
 from app.pipeline.stage5_publish_sms import Stage5PublishAndSmsPipeline
+from app.sms.provider import sms_provider_from_settings
 from app.youtube.oauth import YouTubeOAuthService
 
 
@@ -35,6 +36,22 @@ def create_template(_: str = Depends(require_admin)) -> dict[str, str]:
 @router.get("/admin/channels")
 def list_channels(_: str = Depends(require_admin), repo: SheetsRepository = Depends(repository)) -> list[dict[str, str]]:
     return [channel.raw for channel in repo.list_channels()]
+
+
+@router.post("/admin/sms/send-test")
+def send_test_sms(
+    phone_number: str,
+    message: str = "YouTube 자동화 문자 발송 테스트입니다.",
+    _: str = Depends(require_admin),
+) -> dict[str, str | bool]:
+    if not phone_number.strip():
+        raise HTTPException(status_code=400, detail="phone_number is required")
+    if not message.strip():
+        raise HTTPException(status_code=400, detail="message is required")
+    result = sms_provider_from_settings().send(phone_number, message)
+    if not result.success:
+        raise HTTPException(status_code=502, detail=result.error_message or "SMS send failed")
+    return {"success": True, "provider_message_id": result.provider_message_id}
 
 
 @router.post("/admin/pipeline/stage1/run")
